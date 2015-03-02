@@ -4,7 +4,7 @@ a bunch of scripts that i have come to write during my work in the theoretical c
 use fccanalyse to extract the strongest vibronic transitions from an already existing
 output file:
 
-    fccanalyse -f <number of transitions> <n/e (normal/excited)
+    fccanalyse -f <number of transitions> <n/e (normal/excited)>
 
 to plot the stick spectrum with gnuplot, including the oscillator excitation labels, use
 
