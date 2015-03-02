@@ -99,7 +99,7 @@ for i in range(0, nPeaks):
     # we have to treat the 0-0 excitation specially, because the format is inconsistent
     if (peakIndex == 1.0):
         outputString += "{0:15.5e} {1:18.9e}".format(normStickDataSorted[i][1], normStickDataSorted[i][2])
-        outputString += "      0 - 0"
+        outputString += "     0-0"
     else:
         # find the line of the excitation
         for j in range(len(assignmentData)):
@@ -132,9 +132,17 @@ for i in range(0, nPeaks):
                 break
             oscillators.append(currentOscillator)
             quanta.append(currentQuantum)
-        outputString += "{0:15.5e} {1:18.9e}".format(normStickDataSorted[i][1], normStickDataSorted[i][2])
+        outputString += "{0:15.5e} {1:18.9e}     ".format(normStickDataSorted[i][1], normStickDataSorted[i][2])
         for j in range(len(oscillators)):
-            outputString += "{0:7d} {1:3d}".format(oscillators[j], quanta[j])
+            if (oscillators[j] < 10):
+                outputString += "{0:1d}^{{{1:1d}}}".format(oscillators[j], quanta[j])
+            elif (oscillators[j] < 100):
+                outputString += "{0:2d}^{{{1:1d}}}".format(oscillators[j], quanta[j])
+            else:
+                outputString += "{0:3d}^{{{1:1d}}}".format(oscillators[j], quanta[j])
+
+            if (j < len(oscillators) - 1):
+                outputString += ","
     outputString += "\n"
     assNormOutFile.write(outputString)
 
@@ -174,7 +182,7 @@ if (excitedExists):
         # take care of the M-0 transition
         if ("state 2 = GROUND" in assignmentData[lineNumber + 5]):
             outputString += "{0:15.5e} {1:18.9e}".format(excStickDataSorted[i][1], excStickDataSorted[i][2])
-            outputString += "   M - 0"
+            outputString += "     M-0"
         else:
             # append the oscillators
             oscillators = []
@@ -198,9 +206,17 @@ if (excitedExists):
                     break
                 oscillators.append(currentOscillator)
                 quanta.append(currentQuantum)
-            outputString += "{0:15.5e} {1:18.9e}".format(excStickDataSorted[i][1], excStickDataSorted[i][2])
+            outputString += "{0:15.5e} {1:18.9e}     ".format(excStickDataSorted[i][1], excStickDataSorted[i][2])
             for j in range(len(oscillators)):
-                outputString += "{0:7d} {1:3d}".format(oscillators[j], quanta[j])
+                if (oscillators[j] < 10):
+                    outputString += "{0:1d}^{{{1:1d}}}".format(oscillators[j], quanta[j])
+                elif (oscillators[j] < 100):
+                    outputString += "{0:2d}^{{{1:1d}}}".format(oscillators[j], quanta[j])
+                else:
+                    outputString += "{0:3d}^{{{1:1d}}}".format(oscillators[j], quanta[j])
+ 
+                if (j < len(oscillators) - 1):
+                    outputString += ","
         outputString += "\n"
         assExcOutFile.write(outputString)
     assExcOutFile.close()
