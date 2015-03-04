@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3.4
 
 # FCCAnalyse -- An FCClasses analysis script
 # this script will extract the strongest stick excitations and the corresponding assignments in
@@ -123,7 +123,7 @@ elif (len(sys.argv) == 1):
 
     # sort the list to get the strongest excitations at the top
     normStickDataSorted = sorted(normStickData, key=lambda l:l[2], reverse=True)
-    nPeaks = input("Enter the number of excitations to be assigned:\n")
+    nPeaks = int(input("Enter the number of excitations to be assigned:\n"))
 
     # get the assignments for the strongest nPeaks excitations
     assNormOutFile = open(assNormOutFileName, "w")
