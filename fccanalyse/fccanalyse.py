@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.4
+#!/usr/bin/env python
 
 # FCCAnalyse -- An FCClasses analysis script
 # this script will extract the strongest stick excitations and the corresponding assignments in
