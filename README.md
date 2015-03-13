@@ -10,3 +10,12 @@ to plot the stick spectrum with gnuplot, including the oscillator excitation lab
 
     plot "assignment-normal.txt" u 2:3 w imp, "" u 2:3:4 with labels rotate left offset 0,char 1
 
+
+To use specdiff:
+Call the program with the data file and the weighting width as the arguments:
+
+    specdiff <file name> <width in eV>
+
+The file must contain three columns representing the energy axis, the ground state spectrum
+and the excited state spectrum, respectively
+
