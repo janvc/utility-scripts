@@ -1,6 +1,9 @@
 # utility-scripts
 a bunch of scripts that i have come to write during my work in the theoretical chemistry business
 
+In the FCClasses output, the mode analysis block begins with
+    "ASSIGNMENTS AND ANALYSIS OF X WITH RESPECT TO Y"
+
 use fccanalyse to extract the strongest vibronic transitions from an already existing
 output file:
 
