@@ -6,27 +6,27 @@ integer,parameter :: id1 = 1            ! IO unit of the input file
 integer,parameter :: id2 = 2            ! IO unit of the input file
 integer,parameter :: dim1 = 9           ! length of the coordinate vector
 integer :: i, j, info
-real(8) :: total_mass                   ! total mass of the molecule
-real(8),dimension(3) :: com             ! center of mass
-real(8),dimension(3) :: moments         ! eigenvalues of inertia tensor
-real(8),dimension(dim1) :: masses       ! the atomic masses
-real(8),dimension(dim1) :: positions    ! the atomic positions
-real(8),dimension(dim1) :: eigvals
-real(8),dimension(3,3) :: inert         ! the inertia tensor
-real(8),dimension(3,3) :: prinaxes      ! eigenvectors of inertia tensor
-real(8),dimension(dim1,dim1) :: f_cart  ! the hessian in cartesian coordinates
-real(8),dimension(dim1,dim1) :: f_mwc   ! the hessian in mass weighted cart. coordinates
-real(8),dimension(dim1,dim1) :: f_diag  ! the hessian in mass weighted cart. coordinates
-real(8),dimension(dim1,dim1) :: D       ! the D matrix
-real(8),dimension(dim1,dim1) :: metric  ! the metric matrix
+real(dp) :: total_mass                  ! total mass of the molecule
+real(dp),dimension(3) :: com            ! center of mass
+real(dp),dimension(3) :: moments        ! eigenvalues of inertia tensor
+real(dp),dimension(dim1) :: masses      ! the atomic masses
+real(dp),dimension(dim1) :: positions   ! the atomic positions
+real(dp),dimension(dim1) :: eigvals
+real(dp),dimension(3,3) :: inert        ! the inertia tensor
+real(dp),dimension(3,3) :: prinaxes     ! eigenvectors of inertia tensor
+real(dp),dimension(dim1,dim1) :: f_cart ! the hessian in cartesian coordinates
+real(dp),dimension(dim1,dim1) :: f_mwc  ! the hessian in mass weighted cart. coordinates
+real(dp),dimension(dim1,dim1) :: f_diag ! the hessian in mass weighted cart. coordinates
+real(dp),dimension(dim1,dim1) :: D      ! the D matrix
+real(dp),dimension(dim1,dim1) :: metric ! the metric matrix
 
-real(8),dimension(30) :: work
+real(dp),dimension(30) :: work
 
 
 ! define the atomic masses:
-masses(1:3) = 15.9949146    ! oxygen
-masses(4:9) = 1.00782504    ! hydrogen
-total_mass = 15.9949146 + 2 * 1.00782504
+masses(1:3) = 15.9949146_dp    ! oxygen
+masses(4:9) = 1.00782504_dp    ! hydrogen
+total_mass = masses(1) + masses(4) + masses(7)
 write(*,*) "total mass: ", total_mass
 
 
@@ -66,7 +66,7 @@ write(*,*) "status of diagonalization: ", info
 !  nu_tilde = 1 / (2 pi c 100 cm/m) * sqrt(lambda * Eh / (a0**2 u))
 write(*,*) "eigenvalues:"
 do i = 1, dim1
-    write(*,'(1x, es15.7, f10.4)') eigvals(i), sqrt(abs(eigvals(i)) * 9.375829435e29) / 1.883651567e11
+    write(*,'(1x, es15.7, f10.4)') eigvals(i), sqrt(abs(eigvals(i)) * 9.375829435e29_dp) / 1.883651567e11_dp
 enddo
 
 
@@ -123,9 +123,9 @@ call write_matrix(inert)
 
 
 ! calculate the D matrix
-D = 0.0
+D = 0.0_dp
 do i = 1, dim1
-    D(i,i) = 1.0
+    D(i,i) = 1.0_dp
 enddo
 
 D(1,1) = sqrt(masses(1))
@@ -139,15 +139,15 @@ D(6,3) = sqrt(masses(6))
 D(9,3) = sqrt(masses(9))
 
 do i = 1, dim1 / 3  ! sum over atom
-    D(3*(i-1)+1,4) =  0.0
+    D(3*(i-1)+1,4) =  0.0_dp
     D(3*(i-1)+2,4) = -positions(3*(i-1)+3) * sqrt(masses(3*(i-1)+2))
     D(3*(i-1)+3,4) =  positions(3*(i-1)+2) * sqrt(masses(3*(i-1)+3))
     D(3*(i-1)+1,5) =  positions(3*(i-1)+3) * sqrt(masses(3*(i-1)+1))
-    D(3*(i-1)+2,5) =  0.0
+    D(3*(i-1)+2,5) =  0.0_dp
     D(3*(i-1)+3,5) = -positions(3*(i-1)+1) * sqrt(masses(3*(i-1)+3))
     D(3*(i-1)+1,6) = -positions(3*(i-1)+2) * sqrt(masses(3*(i-1)+1))
     D(3*(i-1)+2,6) =  positions(3*(i-1)+1) * sqrt(masses(3*(i-1)+2))
-    D(3*(i-1)+3,6) =  0.0
+    D(3*(i-1)+3,6) =  0.0_dp
 enddo
 
 write(*,*) "the D matrix:"

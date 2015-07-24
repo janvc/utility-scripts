@@ -1,15 +1,16 @@
 module routines
 implicit none
 
-contains
+integer,parameter :: dp = selected_real_kind(14)
 
+contains
 
 subroutine readchkmat(id, dim1, mat)
 implicit none
 
 integer,intent(in) :: id                            ! IO unit to read from
 integer,intent(in) :: dim1                          ! dimensionality of the matrix
-real(8),intent(inout),dimension(dim1,dim1) :: mat   ! the matrix
+real(dp),intent(inout),dimension(dim1,dim1) :: mat  ! the matrix
 
 integer :: i, k                                     ! loop indices
 
@@ -26,14 +27,13 @@ implicit none
 
 integer,intent(in) :: id                        ! IO unit to read from
 integer,intent(in) :: dim1                      ! length of the vector
-real(8),intent(inout),dimension(dim1) :: vec    ! the vector
+real(dp),intent(inout),dimension(dim1) :: vec   ! the vector
 integer,intent(inout) :: k
 
 integer :: j
 
 j = 1
 do while (j <= dim1)
-    !write(*,*) j, k
     read(id,'(1x, e15.8)',advance='no') vec(j)
     if (mod(k, 5) == 0) then
         read(id,*)
@@ -50,14 +50,14 @@ subroutine calc_com(x, m, mtot, com)
 !
 implicit none
 
-real(8),intent(in),dimension(:) :: x    ! positions of the atoms
-real(8),intent(in),dimension(:) :: m    ! masses of the atoms
-real(8),intent(in) :: mtot              ! total mass
-real(8),intent(out),dimension(3) :: com ! center of mass
+real(dp),intent(in),dimension(:) :: x    ! positions of the atoms
+real(dp),intent(in),dimension(:) :: m    ! masses of the atoms
+real(dp),intent(in) :: mtot              ! total mass
+real(dp),intent(out),dimension(3) :: com ! center of mass
 
 integer :: i
 
-com = 0.0
+com = 0.0_dp
 do i = 1, size(x), 3
     com(1) = com(1) + (m(i) * x(i))
     com(2) = com(2) + (m(i) * x(i+1))
@@ -71,22 +71,22 @@ subroutine calc_inert(x, m, mtot, inert)
 !
 implicit none
 
-real(8),intent(in),dimension(:) :: x        ! positions of the atoms
-real(8),intent(in),dimension(:) :: m        ! masses of the atoms
-real(8),intent(in) :: mtot                  ! total mass
-real(8),intent(out),dimension(3,3) :: inert ! inertia tensor
+real(dp),intent(in),dimension(:) :: x        ! positions of the atoms
+real(dp),intent(in),dimension(:) :: m        ! masses of the atoms
+real(dp),intent(in) :: mtot                  ! total mass
+real(dp),intent(out),dimension(3,3) :: inert ! inertia tensor
 
 integer :: i, j, k
-real(8) :: factor
-real(8),dimension(3) :: com
+real(dp) :: factor
+real(dp),dimension(3) :: com
 
 call calc_com(x, m, mtot, com)
 
 do i = 1, 3
     do j = 1, 3
-        inert(i,j) = 0.0
+        inert(i,j) = 0.0_dp
         do k = 1, size(x), 3
-            factor = 0.0
+            factor = 0.0_dp
             if (i == j) then
                 factor = norm2(x(k:k+2) - com)
             endif
@@ -102,7 +102,7 @@ subroutine write_matrix(matrix)
 !
 implicit none
 
-real(8),intent(in),dimension(:,:) :: matrix
+real(dp),intent(in),dimension(:,:) :: matrix
 
 integer :: i, j
 
