@@ -22,6 +22,8 @@ enddo
 
 end subroutine readchkmat
 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 subroutine readchkvec(id, dim1, vec, k)
 implicit none
 
@@ -46,6 +48,8 @@ enddo
 
 end subroutine readchkvec
 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 subroutine calc_com(x, m, mtot, com)
 !
 implicit none
@@ -66,6 +70,8 @@ enddo
 com = com / mtot
 
 end subroutine calc_com
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 subroutine calc_inert(x, m, mtot, inert)
 !
@@ -98,6 +104,24 @@ enddo
 
 end subroutine calc_inert
 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+subroutine write_vector(vector)
+!
+implicit none
+
+real(dp),intent(in),dimension(:) :: vector
+
+integer :: i
+
+do i = 1, size(vector)
+    write(*,'(1x, es15.8)') vector(i)
+enddo
+
+end subroutine write_vector
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 subroutine write_matrix(matrix)
 !
 implicit none
@@ -114,5 +138,46 @@ do i = 1, size(matrix, 1)
 enddo
 
 end subroutine write_matrix
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+subroutine gram_schmidt(matrix)
+!
+! this subroutine will orthogonalize the column vectors of the matrix 'matrix'
+! by the Gram-Schmidt-Method. The first column vector will remain the same.
+! in this special case we start with the seventh column
+!
+implicit none
+
+! arguments to the routine
+real(dp),dimension(:,:),intent(inout) :: matrix     ! the matrix to be orthogonalized
+! internal variables
+integer :: i, j                                     ! loop indices
+integer :: n                                        ! the dimension of the matrix
+real(dp) :: factor                                  ! temp variable to scale the vectors
+real(dp),dimension(:),allocatable :: temp_vec       ! temporary vector
+real(dp),dimension(:,:),allocatable :: new_matrix   ! the new orthogonal matrix
+
+n = size(matrix, 1)
+allocate(temp_vec(n))
+allocate(new_matrix(n,n))
+
+new_matrix = 0.0
+new_matrix(:,1:6) = matrix(:,1:6)
+
+do i = 7, n
+    temp_vec = matrix(:,i)
+    do j = 1, i-1
+        factor = dot_product(temp_vec, new_matrix(:,j))
+        temp_vec = temp_vec - factor * new_matrix(:,j)
+    enddo
+    factor = norm2(temp_vec)
+    temp_vec = temp_vec / factor
+    new_matrix(:,i) = temp_vec
+enddo
+
+matrix = new_matrix
+
+end subroutine gram_schmidt
 
 end module routines

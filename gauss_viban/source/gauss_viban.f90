@@ -14,9 +14,12 @@ real(dp),dimension(dim1) :: positions   ! the atomic positions
 real(dp),dimension(dim1) :: eigvals
 real(dp),dimension(3,3) :: inert        ! the inertia tensor
 real(dp),dimension(3,3) :: prinaxes     ! eigenvectors of inertia tensor
+real(dp),dimension(3,3) :: test_hessian ! 
 real(dp),dimension(dim1,dim1) :: f_cart ! the hessian in cartesian coordinates
 real(dp),dimension(dim1,dim1) :: f_mwc  ! the hessian in mass weighted cart. coordinates
-real(dp),dimension(dim1,dim1) :: f_diag ! the hessian in mass weighted cart. coordinates
+real(dp),dimension(dim1,dim1) :: f_diag ! diagonalized hessian
+real(dp),dimension(dim1,dim1) :: f_int  ! the hessian in internal coodinates
+
 real(dp),dimension(dim1,dim1) :: D      ! the D matrix
 real(dp),dimension(dim1,dim1) :: metric ! the metric matrix
 
@@ -127,6 +130,11 @@ D = 0.0_dp
 do i = 1, dim1
     D(i,i) = 1.0_dp
 enddo
+do i = 1, dim1
+    do j = 7, dim1
+        call random_number(D(i,j))
+    enddo
+enddo
 
 D(1,1) = sqrt(masses(1))
 D(4,1) = sqrt(masses(4))
@@ -140,18 +148,18 @@ D(9,3) = sqrt(masses(9))
 
 do i = 1, dim1 / 3  ! sum over atom
     D(3*(i-1)+1,4) =  0.0_dp
-    D(3*(i-1)+2,4) = -positions(3*(i-1)+3) * sqrt(masses(3*(i-1)+2))
-    D(3*(i-1)+3,4) =  positions(3*(i-1)+2) * sqrt(masses(3*(i-1)+3))
-    D(3*(i-1)+1,5) =  positions(3*(i-1)+3) * sqrt(masses(3*(i-1)+1))
+    D(3*(i-1)+2,4) = -dot_product(positions(3*i-2:3*i), prinaxes(3,:)) * sqrt(masses(3*(i-1)+2))
+    D(3*(i-1)+3,4) =  dot_product(positions(3*i-2:3*i), prinaxes(2,:)) * sqrt(masses(3*(i-1)+3))
+    D(3*(i-1)+1,5) =  dot_product(positions(3*i-2:3*i), prinaxes(3,:)) * sqrt(masses(3*(i-1)+1))
     D(3*(i-1)+2,5) =  0.0_dp
-    D(3*(i-1)+3,5) = -positions(3*(i-1)+1) * sqrt(masses(3*(i-1)+3))
-    D(3*(i-1)+1,6) = -positions(3*(i-1)+2) * sqrt(masses(3*(i-1)+1))
-    D(3*(i-1)+2,6) =  positions(3*(i-1)+1) * sqrt(masses(3*(i-1)+2))
+    D(3*(i-1)+3,5) = -dot_product(positions(3*i-2:3*i), prinaxes(1,:)) * sqrt(masses(3*(i-1)+3))
+    D(3*(i-1)+1,6) = -dot_product(positions(3*i-2:3*i), prinaxes(2,:)) * sqrt(masses(3*(i-1)+1))
+    D(3*(i-1)+2,6) =  dot_product(positions(3*i-2:3*i), prinaxes(1,:)) * sqrt(masses(3*(i-1)+2))
     D(3*(i-1)+3,6) =  0.0_dp
 enddo
 
-write(*,*) "the D matrix:"
-call write_matrix(D)
+!write(*,*) "the D matrix:"
+!call write_matrix(D)
 
 ! normalize the D matrix
 do i = 1, dim1
@@ -160,10 +168,56 @@ enddo
 
 write(*,*) "the normalized D matrix:"
 call write_matrix(D)
-
 metric = matmul(transpose(D), D)
 write(*,*) "the metric matrix:"
 call write_matrix(metric)
+
+
+! orthogonalize the D-matrix:
+call gram_schmidt(D)
+
+write(*,*) "the orthogonalized D matrix:"
+call write_matrix(D)
+metric = matmul(transpose(D), D)
+write(*,*) "the metric matrix:"
+call write_matrix(metric)
+
+
+! transform the hessian to internal coordinates:
+f_int = matmul(transpose(D), matmul(f_mwc, D))
+!f_int = matmul(D, matmul(f_mwc, transpose(D)))
+write(*,*) "the hessian in internal coordinates:"
+call write_matrix(f_int)
+
+
+! diagonalize the internal hessian:
+f_diag = f_int
+call dsyev('V', 'U', dim1, f_diag, dim1, eigvals, work, 30, info)
+write(*,*) "status of diagonalization: ", info
+
+write(*,*) "eigenvalues:"
+do i = 1, dim1
+    write(*,'(1x, es15.7, f10.4)') eigvals(i), sqrt(abs(eigvals(i)) * 9.375829435e29_dp) / 1.883651567e11_dp
+enddo
+
+write(*,*) "eigenvectors of the hessian:"
+call write_matrix(f_diag)
+
+test_hessian = f_int(7:9,7:9)
+write(*,*) "test hessian:"
+call write_matrix(test_hessian)
+call dsyev('V', 'U', 3, test_hessian, 3, moments, work, 30, info)
+write(*,*) "status of diagonalization: ", info
+
+write(*,*) "eigenvalues:"
+do i = 1, 3
+    write(*,'(1x, es15.7, f10.4)') moments(i), sqrt(abs(moments(i)) * 9.375829435e29_dp) / 1.883651567e11_dp
+enddo
+
+write(*,*) "eigenvectors of the hessian:"
+call write_matrix(test_hessian)
+
+
 
 
 end program readprogram
