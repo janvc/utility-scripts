@@ -1,4 +1,4 @@
-module miquel_routines
+module routines
 implicit none
 
 contains
@@ -46,4 +46,73 @@ enddo
 
 end subroutine readchkvec
 
-end module miquel_routines
+subroutine calc_com(x, m, mtot, com)
+!
+implicit none
+
+real(8),intent(in),dimension(:) :: x    ! positions of the atoms
+real(8),intent(in),dimension(:) :: m    ! masses of the atoms
+real(8),intent(in) :: mtot              ! total mass
+real(8),intent(out),dimension(3) :: com ! center of mass
+
+integer :: i
+
+com = 0.0
+do i = 1, size(x), 3
+    com(1) = com(1) + (m(i) * x(i))
+    com(2) = com(2) + (m(i) * x(i+1))
+    com(3) = com(3) + (m(i) * x(i+2))
+enddo
+com = com / mtot
+
+end subroutine calc_com
+
+subroutine calc_inert(x, m, mtot, inert)
+!
+implicit none
+
+real(8),intent(in),dimension(:) :: x        ! positions of the atoms
+real(8),intent(in),dimension(:) :: m        ! masses of the atoms
+real(8),intent(in) :: mtot                  ! total mass
+real(8),intent(out),dimension(3,3) :: inert ! inertia tensor
+
+integer :: i, j, k
+real(8) :: factor
+real(8),dimension(3) :: com
+
+call calc_com(x, m, mtot, com)
+
+do i = 1, 3
+    do j = 1, 3
+        inert(i,j) = 0.0
+        do k = 1, size(x), 3
+            factor = 0.0
+            if (i == j) then
+                factor = norm2(x(k:k+2) - com)
+            endif
+            factor = factor - (x(k+i-1) - com(i)) * (x(k+j-1) - com(j))
+            inert(i,j) = inert(i,j) + (m(k) * factor)
+        enddo
+    enddo
+enddo
+
+end subroutine calc_inert
+
+subroutine write_matrix(matrix)
+!
+implicit none
+
+real(8),intent(in),dimension(:,:) :: matrix
+
+integer :: i, j
+
+do i = 1, size(matrix, 1)
+    do j = 1, size(matrix, 2)
+        write(*,'(1x, es15.8)',advance='no') matrix(i,j)
+    enddo
+    write(*,*)
+enddo
+
+end subroutine write_matrix
+
+end module routines
