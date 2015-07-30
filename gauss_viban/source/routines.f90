@@ -5,6 +5,46 @@ integer,parameter :: dp = selected_real_kind(14)
 
 contains
 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+subroutine searchstring(iounit, keyword, back, lerr)
+! Go to the first instance of "keyword" found in file "id"
+implicit none
+
+integer,intent(in) :: iounit            ! IO unit of the file to search
+character(len=*),intent(in) :: keyword  ! the string to search for
+logical,intent(in) :: back              ! wether to start from the beginning
+logical,intent(inout) :: lerr           ! status
+
+character(len=128) :: line
+integer :: kwidx, ierr
+logical :: stat
+
+lerr = .false.
+ierr = 0
+
+if (back) rewind(iounit)
+
+inquire(iounit,opened=stat,iostat=ierr)
+
+if (.not. stat) return
+
+do while (ierr == 0)
+    read(iounit, '(A)', iostat=ierr) line
+    kwidx = index(line, keyword)
+    if (kwidx /= 0) then
+        backspace(iounit)
+        lerr = .true.
+        return
+    endif
+enddo
+
+lerr = .false.
+
+end subroutine searchstring
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 subroutine readchkmat(id, dim1, mat)
 implicit none
 
