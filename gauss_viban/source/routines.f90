@@ -102,10 +102,10 @@ real(dp),intent(out),dimension(3) :: com ! center of mass
 integer :: i
 
 com = 0.0_dp
-do i = 1, size(x), 3
-    com(1) = com(1) + (m(i) * x(i))
-    com(2) = com(2) + (m(i) * x(i+1))
-    com(3) = com(3) + (m(i) * x(i+2))
+do i = 1, size(m)
+    com(1) = com(1) + (m(i) * x(3*(i-1)+1))
+    com(2) = com(2) + (m(i) * x(3*(i-1)+2))
+    com(3) = com(3) + (m(i) * x(3*(i-1)+3))
 enddo
 com = com / mtot
 
@@ -146,14 +146,17 @@ end subroutine calc_inert
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-subroutine write_vector(vector)
+subroutine write_vector(vector, dig)
 !
 implicit none
 
-real(dp),intent(in),dimension(:) :: vector
+real(dp),intent(in),dimension(:) :: vector  ! the vector to write
+integer,intent(in),optional :: dig          ! number of decimal places
 
 integer :: i
+character(len=20) :: format_string
 
+format_string = '(1x, '
 do i = 1, size(vector)
     write(*,'(1x, es15.8)') vector(i)
 enddo
@@ -162,11 +165,12 @@ end subroutine write_vector
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-subroutine write_matrix(matrix)
+subroutine write_matrix(matrix, dig)
 !
 implicit none
 
-real(dp),intent(in),dimension(:,:) :: matrix
+real(dp),intent(in),dimension(:,:) :: matrix    ! the matrix to write
+integer,intent(in),optional :: dig              ! number of decimal places
 
 integer :: i, j
 
