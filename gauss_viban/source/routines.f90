@@ -131,12 +131,12 @@ call calc_com(x, m, mtot, com)
 do i = 1, 3
     do j = 1, 3
         inert(i,j) = 0.0_dp
-        do k = 1, size(x), 3
+        do k = 1, size(m)
             factor = 0.0_dp
             if (i == j) then
-                factor = norm2(x(k:k+2) - com)
+                factor = norm2(x(3*(k-1)+1:3*(k-1)+3) - com)
             endif
-            factor = factor - (x(k+i-1) - com(i)) * (x(k+j-1) - com(j))
+            factor = factor - (x(3*(k-1)+i) - com(i)) * (x(3*(k-1)+j) - com(j))
             inert(i,j) = inert(i,j) + (m(k) * factor)
         enddo
     enddo

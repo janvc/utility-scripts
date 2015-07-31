@@ -16,10 +16,15 @@ real(dp),dimension(:),allocatable :: mass_vector    ! the atomic masses (length 
 real(dp),dimension(:),allocatable :: positions      ! the atomic positions
 real(dp),dimension(:),allocatable :: freqs          ! the normal mode frequencies
 real(dp),dimension(:),allocatable :: work           ! working array for the LAPACK routine
+real(dp),dimension(:,:),allocatable :: m_mat        ! the inverse mass-matrix
 real(dp),dimension(:,:),allocatable :: f_cart       ! the hessian in cartesian coordinates
 real(dp),dimension(:,:),allocatable :: f_mwc        ! the hessian in mass weighted cart. coordinates
 real(dp),dimension(:,:),allocatable :: f_diag       ! diagonalized hessian
 real(dp),dimension(:,:),allocatable :: f_int        ! the hessian in internal coodinates
+real(dp),dimension(:,:),allocatable :: f_sub        ! submatrix of the hessian without translation and rotation
+real(dp),dimension(:,:),allocatable :: l_init       ! initial displacements (L matrix)
+real(dp),dimension(:,:),allocatable :: l_mwc        ! mass-weighted cartesian displacements
+real(dp),dimension(:,:),allocatable :: l_cart       ! non-mass-weighted cartesian displacements
 real(dp),dimension(:,:),allocatable :: D            ! the D matrix
 real(dp),dimension(:,:),allocatable :: metric       ! metric matrix to test orthogonality
 real(dp),dimension(:,:),allocatable :: modes        ! the normal modes (eigenvectors of the hessian)
@@ -43,10 +48,12 @@ allocate(masses(Natoms))
 allocate(mass_vector(3 * Natoms))
 allocate(positions(3 * Natoms))
 allocate(freqs(3 * Natoms))
+allocate(m_mat(3 * Natoms, 3 * Natoms))
 allocate(f_cart(3 * Natoms, 3 * Natoms))
 allocate(f_mwc(3 * Natoms, 3 * Natoms))
 allocate(f_diag(3 * Natoms, 3 * Natoms))
 allocate(f_int(3 * Natoms, 3 * Natoms))
+allocate(f_sub(3*Natoms-6, 3*Natoms-6))
 allocate(D(3 * Natoms, 3 * Natoms))
 allocate(metric(3 * Natoms, 3 * Natoms))
 allocate(modes(3 * Natoms, 3 * Natoms))
@@ -116,7 +123,7 @@ do i = 1, Natoms
 enddo
 
 ! calculate and diagonalize the inertia tensor and rotate the molecule:
-call calc_inert(positions, mass_vector, total_mass, inert)
+call calc_inert(positions, masses, total_mass, inert)
 write(*,*) "inertia tensor:"
 call write_matrix(inert)
 prinaxes = inert
@@ -154,17 +161,17 @@ do i = 1, 3
 enddo
 do i = 1, Natoms    ! sum over atoms
     D(3*(i-1)+1,4) =  0.0_dp
-    D(3*(i-1)+2,4) = -dot_product(positions(3*i-2:3*i), prinaxes(3,:)) * sqrt(masses(3*(i-1)+2))
-    D(3*(i-1)+3,4) =  dot_product(positions(3*i-2:3*i), prinaxes(2,:)) * sqrt(masses(3*(i-1)+3))
-    D(3*(i-1)+1,5) =  dot_product(positions(3*i-2:3*i), prinaxes(3,:)) * sqrt(masses(3*(i-1)+1))
+    D(3*(i-1)+2,4) = -dot_product(positions(3*(i-1)+1:3*(i-1)+3), prinaxes(3,:)) * sqrt(masses(i))
+    D(3*(i-1)+3,4) =  dot_product(positions(3*(i-1)+1:3*(i-1)+3), prinaxes(2,:)) * sqrt(masses(i))
+    D(3*(i-1)+1,5) =  dot_product(positions(3*(i-1)+1:3*(i-1)+3), prinaxes(3,:)) * sqrt(masses(i))
     D(3*(i-1)+2,5) =  0.0_dp
-    D(3*(i-1)+3,5) = -dot_product(positions(3*i-2:3*i), prinaxes(1,:)) * sqrt(masses(3*(i-1)+3))
-    D(3*(i-1)+1,6) = -dot_product(positions(3*i-2:3*i), prinaxes(2,:)) * sqrt(masses(3*(i-1)+1))
-    D(3*(i-1)+2,6) =  dot_product(positions(3*i-2:3*i), prinaxes(1,:)) * sqrt(masses(3*(i-1)+2))
+    D(3*(i-1)+3,5) = -dot_product(positions(3*(i-1)+1:3*(i-1)+3), prinaxes(1,:)) * sqrt(masses(i))
+    D(3*(i-1)+1,6) = -dot_product(positions(3*(i-1)+1:3*(i-1)+3), prinaxes(2,:)) * sqrt(masses(i))
+    D(3*(i-1)+2,6) =  dot_product(positions(3*(i-1)+1:3*(i-1)+3), prinaxes(1,:)) * sqrt(masses(i))
     D(3*(i-1)+3,6) =  0.0_dp
 enddo
 
-write(*,*) "the D matrix:"
+write(*,*) "the initial D matrix:"
 call write_matrix(D)
 
 ! normalize the D matrix:
@@ -175,7 +182,7 @@ enddo
 write(*,*) "the normalized D matrix:"
 call write_matrix(D)
 metric = matmul(transpose(D), D)
-write(*,*) "the metric of the D matrix:"
+write(*,*) "the metric of the normalized D matrix:"
 call write_matrix(metric)
 
 ! orthogonalize the D-matrix:
@@ -192,34 +199,46 @@ f_int = matmul(transpose(D), matmul(f_mwc, D))
 write(*,*) "the hessian in internal coordinates:"
 call write_matrix(f_int)
 
-
-! diagonalize the internal hessian:
-f_diag = f_int
-call dsyev('V', 'U', 3 * Natoms, f_diag, 3 * Natoms, freqs, work, lwork, info)
+! diagonalize the hessian submatrix:
+f_sub = f_int(7:3*Natoms,7:3*Natoms)
+freqs = 0.0_dp
+call dsyev('V', 'U', 3*Natoms-6, f_sub, 3*Natoms-6, freqs, work, lwork, info)
 write(*,*) "status of diagonalization: ", info
-
-write(*,*) "eigenvalues:"
+write(*,*) "eigenvalues of the hessian submatrix (real frequencies)"
 do i = 1, 3 * Natoms
     write(*,'(1x, es15.7, f10.4)') freqs(i), sqrt(abs(freqs(i)) * 9.375829435e29_dp) / 1.883651567e11_dp
 enddo
 
-write(*,*) "eigenvectors of the hessian:"
-call write_matrix(f_diag)
-
-test_hessian = f_int(7:9,7:9)
-write(*,*) "test hessian:"
-call write_matrix(test_hessian)
-call dsyev('V', 'U', 3, test_hessian, 3, moments, work, 30, info)
+! diagonalize the full internal hessian:
+l_init = f_int
+call dsyev('V', 'U', 3*Natoms, l_init, 3*Natoms, freqs, work, lwork, info)
 write(*,*) "status of diagonalization: ", info
+write(*,*) "initial displacements:"
+call write_matrix(l_init)
 
-write(*,*) "eigenvalues:"
-do i = 1, 3
-    write(*,'(1x, es15.7, f10.4)') moments(i), sqrt(abs(moments(i)) * 9.375829435e29_dp) / 1.883651567e11_dp
+! transform the displacements:
+l_mwc = matmul(D, l_init)
+write(*,*) "transformed mass-weighted displacements:"
+call write_matrix(l_mwc)
+m_mat = 0.0_dp
+do i = 1, 3 * Natoms
+    m_mat(i,i) = 1.0_dp / sqrt(mass_vector(i))
 enddo
+write(*,*) "the inverse mass matrix:"
+call write_matrix(m_mat)
+l_cart = matmul(m_mat, l_mwc)
+write(*,*) "non-mass-weighted cartesian displacements:"
+call write_matrix(l_cart)
 
-write(*,*) "eigenvectors of the hessian:"
-call write_matrix(test_hessian)
-
+metric = matmul(transpose(l_init), l_init)
+write(*,*) "metric of the initial displacements:"
+call write_matrix(metric)
+metric = matmul(transpose(l_mwc), l_mwc)
+write(*,*) "metric of the mass-weighted displacements:"
+call write_matrix(metric)
+metric = matmul(transpose(l_cart), l_cart)
+write(*,*) "metric of the cartesian displacements:"
+call write_matrix(metric)
 
 
 
