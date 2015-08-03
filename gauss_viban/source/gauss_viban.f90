@@ -3,6 +3,11 @@ use routines
 implicit none
 
 integer,parameter :: fcheckio = 1                   ! IO unit of the formatted checkpoint file
+real(dp),parameter :: pi = 3.141592653589793238_dp  ! pi
+real(dp),parameter :: c0 = 299792458.0_dp           ! the speed of light
+real(dp),parameter :: Eh = 4.3597438e-18_dp         ! the Hartree energy
+real(dp),parameter :: a0 = 5.291772083e-11_dp       ! the bohr radius
+real(dp),parameter :: u  = 1.66053873e-27_dp        ! the atomic mass unit
 integer :: Natoms                                   ! number of atoms
 integer :: i, j, info                               ! loop indices etc.
 integer :: lwork                                    ! for LAPACK
@@ -111,7 +116,8 @@ write(*,*) "status of diagonalization: ", info
 !  nu_tilde = 1 / (2 pi c 100 cm/m) * sqrt(lambda * Eh / (a0**2 u))
 write(*,*) "eigenvalues:"
 do i = 1, 3 * Natoms
-    write(*,'(1x, es15.7, f10.4)') freqs(i), sqrt(abs(freqs(i)) * 9.375829435e29_dp) / 1.883651567e11_dp
+    write(*,'(1x, es15.7, f10.4)') freqs(i), &
+        sqrt(abs(freqs(i)) * Eh / (a0**2 * u)) / (2 * pi * c0 * 100.0)
 enddo
 
 ! calculate the center of mass and shift the molecule:
@@ -206,7 +212,8 @@ call dsyev('V', 'U', 3*Natoms-6, f_sub, 3*Natoms-6, freqs, work, lwork, info)
 write(*,*) "status of diagonalization: ", info
 write(*,*) "eigenvalues of the hessian submatrix (real frequencies)"
 do i = 1, 3 * Natoms
-    write(*,'(1x, es15.7, f10.4)') freqs(i), sqrt(abs(freqs(i)) * 9.375829435e29_dp) / 1.883651567e11_dp
+    write(*,'(1x, es15.7, f10.4)') freqs(i), &
+        sqrt(abs(freqs(i)) * Eh / (a0**2 * u)) / (2 * pi * c0 * 100.0)
 enddo
 
 ! diagonalize the full internal hessian:
@@ -229,6 +236,13 @@ call write_matrix(m_mat)
 l_cart = matmul(m_mat, l_mwc)
 write(*,*) "non-mass-weighted cartesian displacements:"
 call write_matrix(l_cart)
+write(*,*) "non-mass-weighted cartesian displacements in Gaussian HPmodes style:"
+do i = 1, 3 * Natoms
+    do j = 1, 3 * Natoms
+        write(*,'(1x, f9.5)',advance='no') l_cart(i,j)
+    enddo
+    write(*,*)
+enddo
 
 metric = matmul(transpose(l_init), l_init)
 write(*,*) "metric of the initial displacements:"
