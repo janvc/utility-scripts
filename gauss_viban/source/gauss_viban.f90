@@ -8,7 +8,9 @@ real(dp),parameter :: c0 = 299792458.0_dp           ! the speed of light
 real(dp),parameter :: Eh = 4.3597438e-18_dp         ! the Hartree energy
 real(dp),parameter :: a0 = 5.291772083e-11_dp       ! the bohr radius
 real(dp),parameter :: u  = 1.66053873e-27_dp        ! the atomic mass unit
-integer :: Natoms                                   ! number of atoms
+integer :: Natoms                                   ! number of atoms (N)
+integer :: Ncoords                                  ! number of coordinates (3N)
+integer :: Nmodes                                   ! number of normal modes (3N-6)
 integer :: i, j, info                               ! loop indices etc.
 integer :: lwork                                    ! for LAPACK
 real(dp) :: total_mass                              ! total mass of the molecule
@@ -49,31 +51,33 @@ open(unit=fcheckio,file=fcheckfile,status='old',action='read')
 ! read the data from the checkpoint file:
 call searchstring(fcheckio, "Number of atoms", .true., lerr)
 read(fcheckio,'(55x,i6)') Natoms
+Ncoords = 3 * Natoms
+Nmodes = Ncoords - 6
 allocate(masses(Natoms))
-allocate(mass_vector(3 * Natoms))
-allocate(positions(3 * Natoms))
-allocate(freqs(3 * Natoms))
-allocate(m_mat(3 * Natoms, 3 * Natoms))
-allocate(f_cart(3 * Natoms, 3 * Natoms))
-allocate(f_mwc(3 * Natoms, 3 * Natoms))
-allocate(f_diag(3 * Natoms, 3 * Natoms))
-allocate(f_int(3 * Natoms, 3 * Natoms))
-allocate(f_sub(3*Natoms-6, 3*Natoms-6))
-allocate(D(3 * Natoms, 3 * Natoms))
-allocate(metric(3 * Natoms, 3 * Natoms))
-allocate(modes(3 * Natoms, 3 * Natoms))
-allocate(test_hessian(3*Natoms-6, 3*Natoms-6))
+allocate(mass_vector(Ncoords))
+allocate(positions(Ncoords))
+allocate(freqs(Ncoords))
+allocate(m_mat(Ncoords,Ncoords))
+allocate(f_cart(Ncoords,Ncoords))
+allocate(f_mwc(Ncoords,Ncoords))
+allocate(f_diag(Ncoords,Ncoords))
+allocate(f_int(Ncoords,Ncoords))
+allocate(f_sub(Nmodes,Nmodes))
+allocate(D(Ncoords,Ncoords))
+allocate(metric(Ncoords,Ncoords))
+allocate(modes(Ncoords,Ncoords))
+allocate(test_hessian(Nmodes,Nmodes))
 call searchstring(fcheckio, "Current cartesian coordinates", .true., lerr)
 read(fcheckio,*)
 i = 1
-call readchkvec(fcheckio, size(positions), positions, i)
+call readchkvec(fcheckio, Ncoords, positions, i)
 call searchstring(fcheckio, "Real atomic weights", .true., lerr)
 read(fcheckio,*)
 i = 1
-call readchkvec(fcheckio, size(masses), masses, i)
+call readchkvec(fcheckio, Natoms, masses, i)
 call searchstring(fcheckio, "Cartesian Force Constants", .true., lerr)
 read(fcheckio,*)
-call readchkmat(fcheckio, size(f_cart, 1), f_cart)
+call readchkmat(fcheckio, Ncoords, f_cart)
 total_mass = sum(masses)
 do i = 1, Natoms
     mass_vector(3*(i-1)+1) = masses(i)
@@ -92,8 +96,8 @@ write(*,*) "non-mass-weighted initial cartesian hessian:"
 call write_matrix(f_cart)
 
 ! calculate the mass-weighted hessian:
-do i = 1, 3 * Natoms
-    do j = 1, 3 * Natoms
+do i = 1, Ncoords
+    do j = 1, Ncoords
         f_mwc(i,j) = f_cart(i,j) / sqrt(mass_vector(i) * mass_vector(j))
     enddo
 enddo
@@ -104,18 +108,18 @@ call write_matrix(f_mwc)
 f_diag = f_mwc
 lwork = -1
 allocate(work(1))
-call dsyev('N', 'U', 3 * Natoms, f_diag, 3 * Natoms, freqs, work, lwork, info)
+call dsyev('N', 'U', Ncoords, f_diag, Ncoords, freqs, work, lwork, info)
 lwork = int(work(1))
 deallocate(work)
 allocate(work(lwork))
 f_diag = f_mwc
-call dsyev('N', 'U', 3 * Natoms, f_diag, 3 * Natoms, freqs, work, lwork, info)
+call dsyev('N', 'U', Ncoords, f_diag, Ncoords, freqs, work, lwork, info)
 write(*,*) "status of diagonalization: ", info
 
 ! conversion from atomic units to cm-1:
 !  nu_tilde = 1 / (2 pi c 100 cm/m) * sqrt(lambda * Eh / (a0**2 u))
 write(*,*) "eigenvalues:"
-do i = 1, 3 * Natoms
+do i = 1, Ncoords
     write(*,'(1x, es15.7, f10.4)') freqs(i), &
         sqrt(abs(freqs(i)) * Eh / (a0**2 * u)) / (2 * pi * c0 * 100.0)
 enddo
@@ -155,8 +159,8 @@ call write_matrix(inert)
 
 ! calculate the D matrix
 D = 0.0_dp
-do i = 1, 3 * Natoms
-    do j = 7, 3 * Natoms
+do i = 1, Ncoords
+    do j = 7, Ncoords
         call random_number(D(i,j))
     enddo
 enddo
@@ -181,7 +185,7 @@ write(*,*) "the initial D matrix:"
 call write_matrix(D)
 
 ! normalize the D matrix:
-do i = 1, 3 * Natoms
+do i = 1, Ncoords
     D(:,i) = D(:,i) / norm2(D(:,i))
 enddo
 
@@ -206,19 +210,19 @@ write(*,*) "the hessian in internal coordinates:"
 call write_matrix(f_int)
 
 ! diagonalize the hessian submatrix:
-f_sub = f_int(7:3*Natoms,7:3*Natoms)
+f_sub = f_int(7:Ncoords,7:Ncoords)
 freqs = 0.0_dp
-call dsyev('V', 'U', 3*Natoms-6, f_sub, 3*Natoms-6, freqs, work, lwork, info)
+call dsyev('V', 'U', Nmodes, f_sub, Nmodes, freqs, work, lwork, info)
 write(*,*) "status of diagonalization: ", info
 write(*,*) "eigenvalues of the hessian submatrix (real frequencies)"
-do i = 1, 3 * Natoms
+do i = 1, Ncoords
     write(*,'(1x, es15.7, f10.4)') freqs(i), &
         sqrt(abs(freqs(i)) * Eh / (a0**2 * u)) / (2 * pi * c0 * 100.0)
 enddo
 
 ! diagonalize the full internal hessian:
 l_init = f_int
-call dsyev('V', 'U', 3*Natoms, l_init, 3*Natoms, freqs, work, lwork, info)
+call dsyev('V', 'U', Ncoords, l_init, Ncoords, freqs, work, lwork, info)
 write(*,*) "status of diagonalization: ", info
 write(*,*) "initial displacements:"
 call write_matrix(l_init)
@@ -228,7 +232,7 @@ l_mwc = matmul(D, l_init)
 write(*,*) "transformed mass-weighted displacements:"
 call write_matrix(l_mwc)
 m_mat = 0.0_dp
-do i = 1, 3 * Natoms
+do i = 1, Ncoords
     m_mat(i,i) = 1.0_dp / sqrt(mass_vector(i))
 enddo
 write(*,*) "the inverse mass matrix:"
@@ -237,8 +241,8 @@ l_cart = matmul(m_mat, l_mwc)
 write(*,*) "non-mass-weighted cartesian displacements:"
 call write_matrix(l_cart)
 write(*,*) "non-mass-weighted cartesian displacements in Gaussian HPmodes style:"
-do i = 1, 3 * Natoms
-    do j = 1, 3 * Natoms
+do i = 1, Ncoords
+    do j = 1, Ncoords
         write(*,'(1x, f9.5)',advance='no') l_cart(i,j)
     enddo
     write(*,*)
