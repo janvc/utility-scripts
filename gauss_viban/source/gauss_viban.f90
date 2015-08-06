@@ -23,6 +23,8 @@ real(dp),dimension(:),allocatable :: mass_vector    ! the atomic masses (length 
 real(dp),dimension(:),allocatable :: positions      ! the atomic positions
 real(dp),dimension(:),allocatable :: freqs          ! the normal mode frequencies
 real(dp),dimension(:),allocatable :: work           ! working array for the LAPACK routine
+real(dp),dimension(:),allocatable :: red_masses     ! the reduced masses of the normal modes
+real(dp),dimension(:),allocatable :: force_consts   ! the force constants of the normal modes
 real(dp),dimension(:,:),allocatable :: m_mat        ! the inverse mass-matrix
 real(dp),dimension(:,:),allocatable :: f_cart       ! the hessian in cartesian coordinates
 real(dp),dimension(:,:),allocatable :: f_mwc        ! the hessian in mass weighted cart. coordinates
@@ -57,6 +59,8 @@ allocate(masses(Natoms))
 allocate(mass_vector(Ncoords))
 allocate(positions(Ncoords))
 allocate(freqs(Ncoords))
+allocate(red_masses(Ncoords))
+allocate(force_consts(Ncoords))
 allocate(m_mat(Ncoords,Ncoords))
 allocate(f_cart(Ncoords,Ncoords))
 allocate(f_mwc(Ncoords,Ncoords))
@@ -240,6 +244,15 @@ call write_matrix(m_mat)
 l_cart = matmul(m_mat, l_mwc)
 write(*,*) "non-mass-weighted cartesian displacements:"
 call write_matrix(l_cart)
+
+! normalize l_cart:
+do i = 1, Ncoords
+    red_masses(i) = norm2(l_cart(:,i))**2
+    l_cart(:,i) = l_cart(:,i) / sqrt(red_masses(i))
+enddo
+write(*,*) "the normalized non-mass-weighted cartesian displacements:"
+call write_matrix(l_cart)
+
 write(*,*) "non-mass-weighted cartesian displacements in Gaussian HPmodes style:"
 do i = 1, Ncoords
     do j = 1, Ncoords
@@ -257,6 +270,14 @@ call write_matrix(metric)
 metric = matmul(transpose(l_cart), l_cart)
 write(*,*) "metric of the cartesian displacements:"
 call write_matrix(metric)
+
+! calculate force constants:
+force_consts = 4 * pi**2 * freqs**2 * red_masses
+
+write(*,*) "reduced masses of the normal modes:"
+call write_vector(red_masses)
+write(*,*) "force constants of the normal modes:"
+call write_vector(force_consts)
 
 
 
