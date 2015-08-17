@@ -3,6 +3,7 @@ use routines
 implicit none
 
 integer,parameter :: fcheckio = 1                   ! IO unit of the formatted checkpoint file
+integer,parameter :: prec = 3                       ! number of digits to be printed out
 real(dp),parameter :: pi = 3.141592653589793238_dp  ! pi
 real(dp),parameter :: c0 = 299792458.0_dp           ! the speed of light
 real(dp),parameter :: Eh = 4.3597438e-18_dp         ! the Hartree energy
@@ -92,12 +93,12 @@ enddo
 ! write the initial data:
 write(*,*) "Number of atoms: ", Natoms
 write(*,*) "masses:"
-call write_vector(masses)
+call write_vector(masses, prec)
 write(*,*) "total mass: ", total_mass
 write(*,*) "positions:"
-call write_vector(positions)
+call write_vector(positions, prec)
 write(*,*) "non-mass-weighted initial cartesian hessian:"
-call write_matrix(f_cart)
+call write_matrix(f_cart, prec)
 
 ! calculate the mass-weighted hessian:
 do i = 1, Ncoords
@@ -106,7 +107,7 @@ do i = 1, Ncoords
     enddo
 enddo
 write(*,*) "mass-weighted cartesian hessian:"
-call write_matrix(f_mwc)
+call write_matrix(f_mwc, prec)
 
 ! diagonalize the mass-weighted hessian:
 f_diag = f_mwc
@@ -131,7 +132,7 @@ enddo
 ! calculate the center of mass and shift the molecule:
 call calc_com(positions, masses, total_mass, com)
 write(*,*) "center of mass:"
-call write_vector(com)
+call write_vector(com, prec)
 do i = 1, Natoms
     positions(3*(i-1)+1:3*i) = positions(3*(i-1)+1:3*i) - com
 enddo
@@ -139,14 +140,14 @@ enddo
 ! calculate and diagonalize the inertia tensor and rotate the molecule:
 call calc_inert(positions, masses, total_mass, inert)
 write(*,*) "inertia tensor:"
-call write_matrix(inert)
+call write_matrix(inert, prec)
 prinaxes = inert
 call dsyev('V', 'U', 3, prinaxes, 3, moments, work, lwork, info)
 write(*,*) "status of diagonalization: ", info
 write(*,*) "moments:"
-call write_vector(moments)
+call write_vector(moments, prec)
 write(*,*) "principal axes:"
-call write_matrix(prinaxes)
+call write_matrix(prinaxes, prec)
 do i = 1, Natoms
     positions(3*(i-1)+1:3*i) = matmul(transpose(prinaxes), positions(3*(i-1)+1:3*i))
 enddo
@@ -155,11 +156,11 @@ enddo
 call calc_com(positions, masses, total_mass, com)
 call calc_inert(positions, masses, total_mass, inert)
 write(*,*) "new positions:"
-call write_vector(positions)
+call write_vector(positions, prec)
 write(*,*) "new center of mass:"
-call write_vector(com)
+call write_vector(com, prec)
 write(*,*) "new inertia tensor:"
-call write_matrix(inert)
+call write_matrix(inert, prec)
 
 ! calculate the D matrix
 D = 0.0_dp
@@ -186,7 +187,10 @@ do i = 1, Natoms    ! sum over atoms
 enddo
 
 write(*,*) "the initial D matrix:"
-call write_matrix(D)
+call write_matrix(D, prec)
+metric = matmul(transpose(D), D)
+write(*,*) "the metric of the initial D matrix:"
+call write_matrix(metric, prec)
 
 ! normalize the D matrix:
 do i = 1, Ncoords
@@ -194,24 +198,24 @@ do i = 1, Ncoords
 enddo
 
 write(*,*) "the normalized D matrix:"
-call write_matrix(D)
+call write_matrix(D, prec)
 metric = matmul(transpose(D), D)
 write(*,*) "the metric of the normalized D matrix:"
-call write_matrix(metric)
+call write_matrix(metric, prec)
 
 ! orthogonalize the D-matrix:
 call gram_schmidt(D)
 
 write(*,*) "the orthogonalized D matrix:"
-call write_matrix(D)
+call write_matrix(D, prec)
 metric = matmul(transpose(D), D)
 write(*,*) "the metric of the orthogonalized D matrix:"
-call write_matrix(metric)
+call write_matrix(metric, prec)
 
 ! transform the hessian to internal coordinates:
 f_int = matmul(transpose(D), matmul(f_mwc, D))
 write(*,*) "the hessian in internal coordinates:"
-call write_matrix(f_int)
+call write_matrix(f_int, prec)
 
 ! diagonalize the hessian submatrix:
 f_sub = f_int(7:Ncoords,7:Ncoords)
@@ -229,21 +233,21 @@ l_init = f_int
 call dsyev('V', 'U', Ncoords, l_init, Ncoords, freqs, work, lwork, info)
 write(*,*) "status of diagonalization: ", info
 write(*,*) "initial displacements:"
-call write_matrix(l_init)
+call write_matrix(l_init, prec)
 
 ! transform the displacements:
 l_mwc = matmul(D, l_init)
 write(*,*) "transformed mass-weighted displacements:"
-call write_matrix(l_mwc)
+call write_matrix(l_mwc, prec)
 m_mat = 0.0_dp
 do i = 1, Ncoords
     m_mat(i,i) = 1.0_dp / sqrt(mass_vector(i))
 enddo
 write(*,*) "the inverse mass matrix:"
-call write_matrix(m_mat)
+call write_matrix(m_mat, prec)
 l_cart = matmul(m_mat, l_mwc)
 write(*,*) "non-mass-weighted cartesian displacements:"
-call write_matrix(l_cart)
+call write_matrix(l_cart, prec)
 
 ! normalize l_cart:
 do i = 1, Ncoords
@@ -251,7 +255,7 @@ do i = 1, Ncoords
     l_cart(:,i) = l_cart(:,i) / sqrt(red_masses(i))
 enddo
 write(*,*) "the normalized non-mass-weighted cartesian displacements:"
-call write_matrix(l_cart)
+call write_matrix(l_cart, prec)
 
 write(*,*) "non-mass-weighted cartesian displacements in Gaussian HPmodes style:"
 do i = 1, Ncoords
@@ -263,21 +267,21 @@ enddo
 
 metric = matmul(transpose(l_init), l_init)
 write(*,*) "metric of the initial displacements:"
-call write_matrix(metric)
+call write_matrix(metric, prec)
 metric = matmul(transpose(l_mwc), l_mwc)
 write(*,*) "metric of the mass-weighted displacements:"
-call write_matrix(metric)
+call write_matrix(metric, prec)
 metric = matmul(transpose(l_cart), l_cart)
 write(*,*) "metric of the cartesian displacements:"
-call write_matrix(metric)
+call write_matrix(metric, prec)
 
 ! calculate force constants:
 force_consts = 4 * pi**2 * freqs**2 * red_masses
 
 write(*,*) "reduced masses of the normal modes:"
-call write_vector(red_masses)
+call write_vector(red_masses, prec)
 write(*,*) "force constants of the normal modes:"
-call write_vector(force_consts)
+call write_vector(force_consts, prec)
 
 
 

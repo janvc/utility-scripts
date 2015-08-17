@@ -153,12 +153,25 @@ implicit none
 real(dp),intent(in),dimension(:) :: vector  ! the vector to write
 integer,intent(in),optional :: dig          ! number of decimal places
 
-integer :: i
-character(len=20) :: format_string
+integer :: i                        ! loop index
+integer :: fw                       ! field width
+character(len=12) :: format_string  ! the format string to write the numbers with
 
-format_string = '(1x, '
+if (present(dig)) then
+    fw = dig + 7
+    if (fw < 10) then
+        write(format_string,'("(1x,  es",i1,".",i1,")")') fw, dig
+    else if (dig > 10) then
+        write(format_string,'("(1x,es",i2,".",i2,")")') fw, dig
+    else
+        write(format_string,'("(1x, es",i2,".",i1,")")') fw, dig
+    endif
+else
+    format_string = '(1x, es15.8)'
+endif
+
 do i = 1, size(vector)
-    write(*,'(1x, es15.8)') vector(i)
+    write(*,format_string) vector(i)
 enddo
 
 end subroutine write_vector
@@ -172,11 +185,26 @@ implicit none
 real(dp),intent(in),dimension(:,:) :: matrix    ! the matrix to write
 integer,intent(in),optional :: dig              ! number of decimal places
 
-integer :: i, j
+integer :: i, j                     ! loop indices
+integer :: fw                       ! field width
+character(len=12) :: format_string  ! the format string to write the numbers with
+
+if (present(dig)) then
+    fw = dig + 7
+    if (fw < 10) then
+        write(format_string,'("(1x,  es",i1,".",i1,")")') fw, dig
+    else if (dig > 10) then
+        write(format_string,'("(1x,es",i2,".",i2,")")') fw, dig
+    else
+        write(format_string,'("(1x, es",i2,".",i1,")")') fw, dig
+    endif
+else
+    format_string = '(1x, es15.8)'
+endif
 
 do i = 1, size(matrix, 1)
     do j = 1, size(matrix, 2)
-        write(*,'(1x, es15.8)',advance='no') matrix(i,j)
+        write(*,format_string,advance='no') matrix(i,j)
     enddo
     write(*,*)
 enddo
