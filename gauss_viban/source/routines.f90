@@ -90,6 +90,25 @@ end subroutine readchkvec
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+subroutine readgaussmodes(id, dim1, modes)
+!
+implicit none
+
+integer,intent(in) :: id                                ! IO unit to read from
+integer,intent(in) :: dim1                              ! number of coordinates (3N, not modes!!)
+real(dp),intent(out),dimension(dim1,dim1-6) :: modes    ! the array to write the modes into
+
+integer :: i, k
+
+k = 1
+do i = 1, dim1 - 6
+    call readchkvec(id, dim1, modes(:,i), k)
+enddo
+
+end subroutine readgaussmodes
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 subroutine calc_com(x, m, mtot, com)
 !
 implicit none
@@ -146,21 +165,28 @@ end subroutine calc_inert
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-subroutine write_vector(vector, dig)
+subroutine write_vector(vector, dig, clean)
 !
 implicit none
 
 real(dp),intent(in),dimension(:) :: vector  ! the vector to write
 integer,intent(in),optional :: dig          ! number of decimal places
+logical,intent(in),optional :: clean        ! write small numbers as zero
 
 integer :: i                        ! loop index
 integer :: fw                       ! field width
+real(dp) :: threshold               ! the threshold for setting vector elements to 0
 character(len=12) :: format_string  ! the format string to write the numbers with
+character(len=8) :: zero_string     ! the format string for the zero
+
+threshold = norm2(vector) / 1.0e10_dp
 
 if (present(dig)) then
     fw = dig + 7
+    write(zero_string,'("(",i2,"x,i1)")') fw
     if (fw < 10) then
         write(format_string,'("(1x,  es",i1,".",i1,")")') fw, dig
+        write(zero_string,'("( ",i1,"x,i1)")') fw
     else if (dig > 10) then
         write(format_string,'("(1x,es",i2,".",i2,")")') fw, dig
     else
@@ -170,29 +196,52 @@ else
     format_string = '(1x, es15.8)'
 endif
 
-do i = 1, size(vector)
-    write(*,format_string) vector(i)
+do i = 1, fw + 1
+    write(*,'("-")',advance='no')
 enddo
+write(*,*)
+
+do i = 1, size(vector)
+    if (present(clean) .and. abs(vector(i)) < threshold) then
+        if (clean) then
+            write(*,zero_string) 0
+        endif
+    else
+        write(*,format_string) vector(i)
+    endif
+enddo
+
+do i = 1, fw + 1
+    write(*,'("-")',advance='no')
+enddo
+write(*,*)
 
 end subroutine write_vector
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-subroutine write_matrix(matrix, dig)
+subroutine write_matrix(matrix, dig, clean)
 !
 implicit none
 
 real(dp),intent(in),dimension(:,:) :: matrix    ! the matrix to write
 integer,intent(in),optional :: dig              ! number of decimal places
+logical,intent(in),optional :: clean            ! write small numbers as zero
 
 integer :: i, j                     ! loop indices
 integer :: fw                       ! field width
+real(dp) :: threshold               ! the threshold for setting matrix elements to 0
 character(len=12) :: format_string  ! the format string to write the numbers with
+character(len=8) :: zero_string     ! the format string for the zero
+
+threshold = matrix_norm(matrix) / 1.0e10_dp
 
 if (present(dig)) then
     fw = dig + 7
+    write(zero_string,'("(",i2,"x,i1)")') fw
     if (fw < 10) then
         write(format_string,'("(1x,  es",i1,".",i1,")")') fw, dig
+        write(zero_string,'("( ",i1,"x,i1)")') fw
     else if (dig > 10) then
         write(format_string,'("(1x,es",i2,".",i2,")")') fw, dig
     else
@@ -202,12 +251,34 @@ else
     format_string = '(1x, es15.8)'
 endif
 
+do i = 1, size(matrix, 2)
+    do j = 1, fw + 1
+        write(*,'("-")',advance='no')
+    enddo
+enddo
+write(*,*)
+
 do i = 1, size(matrix, 1)
     do j = 1, size(matrix, 2)
-        write(*,format_string,advance='no') matrix(i,j)
+        if (present(clean) .and. abs(matrix(i,j)) < threshold) then
+            if (clean) then
+                write(*,zero_string,advance='no') 0
+            else
+                write(*,format_string,advance='no') matrix(i,j)
+            endif
+        else
+            write(*,format_string,advance='no') matrix(i,j)
+        endif
     enddo
     write(*,*)
 enddo
+
+do i = 1, size(matrix, 2)
+    do j = 1, fw + 1
+        write(*,'("-")',advance='no')
+    enddo
+enddo
+write(*,*)
 
 end subroutine write_matrix
 
@@ -251,5 +322,63 @@ enddo
 matrix = new_matrix
 
 end subroutine gram_schmidt
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+real(dp) function matrix_norm(matrix)
+!
+! this function calculates the Frobenius norm of a matrix
+!
+implicit none
+
+! arguments to the routine:
+real(dp),dimension(:,:),intent(in) :: matrix    ! the matrix to calculate the norm of
+
+! internal variables:
+integer :: i, j     ! loop indices
+
+matrix_norm = 0.0_dp
+
+do i = 1, size(matrix, 1)
+    do j = 1, size(matrix, 2)
+        matrix_norm = matrix_norm + matrix(i,j)**2
+    enddo
+enddo
+
+matrix_norm = sqrt(matrix_norm)
+
+end function matrix_norm
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+subroutine ortho_trans(M, U, A)
+!
+! this subroutine performs the orthogonal transformation A = U^T * M * U
+! all matrices have to be quadratic and equal in size
+!
+implicit none
+
+! arguments to the routine:
+real(dp),dimension(:,:),intent(in) :: M     ! the matrix to be transformed
+real(dp),dimension(:,:),intent(in) :: U     ! the transformation matrix
+real(dp),dimension(:,:),intent(out) :: A    ! the resulting matrix
+
+! internal variables:
+integer :: i, j, k, l   ! loop indices
+integer :: dim1         ! dimension of the participating matrices
+
+dim1 = size(M, 1)
+
+do i = 1, dim1
+    do j = 1, dim1
+        do k = 1, dim1
+            do l = 1, dim1
+                A(i,j) = A(i,j) + U(k,i) * M(k,l) * U(l,j)
+            enddo
+        enddo
+    enddo
+enddo
+
+end subroutine ortho_trans
 
 end module routines
