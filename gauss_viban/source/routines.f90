@@ -141,25 +141,24 @@ real(dp),intent(in),dimension(:) :: m        ! masses of the atoms
 real(dp),intent(in) :: mtot                  ! total mass
 real(dp),intent(out),dimension(3,3) :: inert ! inertia tensor
 
-integer :: i, j, k
-real(dp) :: factor
+integer :: i
 real(dp),dimension(3) :: com
 
 call calc_com(x, m, mtot, com)
 
-do i = 1, 3
-    do j = 1, 3
-        inert(i,j) = 0.0_dp
-        do k = 1, size(m)
-            factor = 0.0_dp
-            if (i == j) then
-                factor = norm2(x(3*(k-1)+1:3*(k-1)+3) - com)
-            endif
-            factor = factor - (x(3*(k-1)+i) - com(i)) * (x(3*(k-1)+j) - com(j))
-            inert(i,j) = inert(i,j) + (m(k) * factor)
-        enddo
-    enddo
+inert = 0.0_dp
+do i = 1, size(m)
+    inert(1,1) = inert(1,1) + m(i) * ((x(3*(i-1)+2)-com(2))**2 + (x(3*(i-1)+3)-com(3))**2)
+    inert(2,2) = inert(2,2) + m(i) * ((x(3*(i-1)+1)-com(1))**2 + (x(3*(i-1)+3)-com(3))**2)
+    inert(3,3) = inert(3,3) + m(i) * ((x(3*(i-1)+1)-com(1))**2 + (x(3*(i-1)+2)-com(2))**2)
+    inert(1,2) = inert(1,2) - m(i) * (x(3*(i-1)+1)-com(1)) * (x(3*(i-1)+2)-com(2))
+    inert(1,3) = inert(1,3) - m(i) * (x(3*(i-1)+1)-com(1)) * (x(3*(i-1)+3)-com(3))
+    inert(2,3) = inert(2,3) - m(i) * (x(3*(i-1)+2)-com(2)) * (x(3*(i-1)+3)-com(3))
 enddo
+
+inert(2,1) = inert(1,2)
+inert(3,1) = inert(1,3)
+inert(3,2) = inert(2,3)
 
 end subroutine calc_inert
 
@@ -193,6 +192,7 @@ if (present(dig)) then
         write(format_string,'("(1x, es",i2,".",i1,")")') fw, dig
     endif
 else
+    fw = 15
     format_string = '(1x, es15.8)'
 endif
 
@@ -205,6 +205,8 @@ do i = 1, size(vector)
     if (present(clean) .and. abs(vector(i)) < threshold) then
         if (clean) then
             write(*,zero_string) 0
+        else
+            write(*,format_string) vector(i)
         endif
     else
         write(*,format_string) vector(i)
@@ -248,6 +250,7 @@ if (present(dig)) then
         write(format_string,'("(1x, es",i2,".",i1,")")') fw, dig
     endif
 else
+    fw = 15
     format_string = '(1x, es15.8)'
 endif
 

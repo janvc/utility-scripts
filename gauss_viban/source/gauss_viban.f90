@@ -3,12 +3,11 @@ use routines
 implicit none
 
 integer,parameter :: fcheckio = 1                   ! IO unit of the formatted checkpoint file
-integer,parameter :: prec = 2                       ! number of digits to be printed out
+integer,parameter :: prec = 5                       ! number of digits to be printed out
 real(dp),parameter :: pi = 3.141592653589793238_dp  ! pi
 real(dp),parameter :: c0 = 299792458.0_dp           ! the speed of light
 real(dp),parameter :: Eh = 4.3597438e-18_dp         ! the Hartree energy
 real(dp),parameter :: a0 = 5.291772083e-11_dp       ! the bohr radius
-real(dp),parameter :: u  = 1.66053873e-27_dp        ! the atomic mass unit
 real(dp),parameter :: hbar = 1.054571596e-34_dp     ! Planck's constant by 2 Pi
 real(dp),parameter :: me = 9.10938188e-31_dp        ! the electron mass
 real(dp),parameter :: amu2au = 1822.88848325_dp     ! to convert from amu to atomic units
@@ -147,18 +146,15 @@ write(*,*) "status of diagonalization: ", info
 write(*,*) "eigenvalues:"
 do i = 1, Ncoords
     write(*,'(1x, es15.7, f10.4)') lambdas(i), &
-        sqrt(abs(lambdas(i)) * Eh / (a0**2 * me)) / (2 * pi * c0 * 100.0)
+        sqrt(abs(lambdas(i)) * Eh / (a0**2 * me)) / (2 * pi * c0 * 100.0_dp)
 enddo
 
-! calculate the center of mass and shift the molecule:
+! calculate the center of mass:
 call calc_com(x, masses, total_mass, com)
 write(*,*) "center of mass:"
 call write_vector(com, prec, cleanup)
-do i = 1, Natoms
-    x(3*(i-1)+1:3*i) = x(3*(i-1)+1:3*i) - com
-enddo
 
-! calculate and diagonalize the inertia tensor and rotate the molecule:
+! calculate and diagonalize the inertia tensor:
 call calc_inert(x, masses, total_mass, inert)
 write(*,*) "inertia tensor:"
 call write_matrix(inert, prec, cleanup)
@@ -169,22 +165,6 @@ write(*,*) "moments:"
 call write_vector(moments, prec, cleanup)
 write(*,*) "principal axes:"
 call write_matrix(prinaxes, prec, cleanup)
-do i = 1, Natoms
-    x(3*(i-1)+1:3*i) = matmul(transpose(prinaxes), x(3*(i-1)+1:3*i))
-enddo
-q = x * mass_vector
-
-! write updated properties
-call calc_com(x, masses, total_mass, com)
-call calc_inert(x, masses, total_mass, inert)
-write(*,*) "new positions:"
-call write_vector(x, prec, cleanup)
-write(*,*) "new mass-weighted positions:"
-call write_vector(q, prec, cleanup)
-write(*,*) "new center of mass:"
-call write_vector(com, prec, cleanup)
-write(*,*) "new inertia tensor:"
-call write_matrix(inert, prec, cleanup)
 
 ! calculate the D matrix
 D = 0.0_dp
@@ -236,9 +216,30 @@ call write_matrix(metric, prec, cleanup)
 
 ! transform the positions and the hessian to internal coordinates:
 s = matmul(D, q)
+write(*,*) "mass-weighted coordinates transformed by D:"
+call write_vector(s, prec, cleanup)
 call ortho_trans(f_mwc, D, f_int)
 write(*,*) "the hessian in internal coordinates:"
 call write_matrix(f_int, prec, cleanup)
+
+! translate and rotate the molecule and write updated properties
+do i = 1, Natoms
+    x(3*(i-1)+1:3*i) = x(3*(i-1)+1:3*i) - com
+enddo
+do i = 1, Natoms
+    x(3*(i-1)+1:3*i) = matmul(transpose(prinaxes), x(3*(i-1)+1:3*i))
+enddo
+q = x * mass_vector
+call calc_com(x, masses, total_mass, com)
+call calc_inert(x, masses, total_mass, inert)
+write(*,*) "new positions:"
+call write_vector(x, prec, cleanup)
+write(*,*) "new mass-weighted positions:"
+call write_vector(q, prec, cleanup)
+write(*,*) "new center of mass:"
+call write_vector(com, prec, cleanup)
+write(*,*) "new inertia tensor:"
+call write_matrix(inert, prec, cleanup)
 
 ! diagonalize the hessian submatrix:
 f_sub = f_int(7:Ncoords,7:Ncoords)
