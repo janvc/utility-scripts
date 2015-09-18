@@ -27,22 +27,31 @@ MOD_DIR = modules
 BIN_DIR = bin
 
 GAUSS_VIBAN = $(addprefix $(BIN_DIR)/,gauss_viban)
+MCTDH_SPECPARA = $(addprefix $(BIN_DIR)/,mctdh_specpara)
 
 CFLAGS = -Wall -Wextra -g --pedantic-errors -std=f2008 -O0 -fall-intrinsics
 LFLAGS = -llapack
 VPATH = $(SRC_DIR):   \
         $(OBJ_DIR)
 
-OBJECTS = $(addprefix $(OBJ_DIR)/,\
-                 routines.o       \
-                 gauss_viban.o    \
-                 )
+GVAOBJECTS = $(addprefix $(OBJ_DIR)/,\
+                routines.o        \
+                gauss_viban.o     \
+                )
 
-all: directories $(GAUSS_VIBAN)
+MPOBJECTS = $(addprefix $(OBJ_DIR)/,\
+                routines.o        \
+                mctdh_specpara.o  \
+                )
+
+all: directories $(GAUSS_VIBAN) $(MCTDH_SPECPARA)
 
 directories: $(OBJ_DIR) $(MOD_DIR) $(BIN_DIR)
 
-$(GAUSS_VIBAN): $(OBJECTS)
+$(MCTDH_SPECPARA): $(MPOBJECTS)
+	$(FC) -o $@ $^ $(LFLAGS)
+
+$(GAUSS_VIBAN): $(GVAOBJECTS)
 	$(FC) -o $@ $^ $(LFLAGS)
 
 $(OBJ_DIR)/%.o: %.f90
