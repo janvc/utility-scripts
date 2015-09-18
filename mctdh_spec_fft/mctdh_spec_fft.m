@@ -21,11 +21,13 @@
 format long;
 
 fs2au = 41.34137333656; % conversion between femtoseconds and atomic units of time
+c0 = 137.0359998;       % the speed of light in atomic units
 
 % read the data.
 arg_list = argv();
 filename = arg_list{1};
 tau = str2num(arg_list{2}) * fs2au;
+offset = str2num(arg_list{3});
 input_data = load(filename);
 
 % find out the next largest power of two that we need for our spectrum.
@@ -74,21 +76,29 @@ specfile = fopen("spec_out.dat", "w");
 autofile = fopen("auto_out.dat", "w");
 double_specfile = fopen("spec_out_double.dat", "w");
 double_autofile = fopen("auto_out_double.dat", "w");
+offset_specfile = fopen("spec_out_offset.dat", "w");
 fprintf(autofile, "#         Time [au]        Re(Auto)         Im(Auto)\n");
 fprintf(specfile, "# Frequency [au]    Frequency [cm-1]        Re(Spec)          Im(Spec)\n");
 fprintf(double_autofile, "#         Time [au]        Re(Auto)         Im(Auto)\n");
 fprintf(double_specfile, "# Frequency [au]    Frequency [cm-1]        Re(Spec)          Im(Spec)\n");
-for a=1:N
+fprintf(offset_specfile, "# Frequency [au]        Re(Spec)          Im(Spec)\n");
+for a=1:length(time)
   fprintf(autofile, "%20.10f %16.10f %16.10f\n", time(a), real(corr_damp(a)), imag(corr_damp(a)));
+end
+for a=1:length(freq)
   fprintf(specfile, "%15.10f %17.10f %17.10f\n", freq(a), real(spec_shift(a)), imag(spec_shift(a)));
 end
-fprintf(specfile, "%15.10f %17.10f %17.10f\n", freq(N+1), real(spec_shift(N+1)), imag(spec_shift(N+1)));
-for a=1:2*N-1
+for a=1:length(double_time)
   fprintf(double_autofile, "%20.10f %16.10f %16.10f\n", double_time(a), real(double_corr_damp(a)), imag(double_corr_damp(a)));
+end
+factor = 4.0 * pi^2 / (3.0 * c0);
+for a=1:length(double_freq)
   fprintf(double_specfile, "%15.10f %17.10f %17.10f\n", double_freq(a), real(double_spec_shift(a)), imag(double_spec_shift(a)));
+  fprintf(offset_specfile, "%15.10f %17.10f %17.10f %17.10f\n", double_freq(a)+offset, real(double_spec_shift(a))*factor*(double_freq(a)+offset), imag(double_spec_shift(a))*factor*(double_freq(a)+offset), abs(double_spec_shift(a))*factor*(double_freq(a)+offset));
 end
 fclose(specfile);
 fclose(autofile);
 fclose(double_specfile);
+fclose(offset_specfile);
 fclose(double_autofile);
 
