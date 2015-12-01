@@ -60,6 +60,7 @@ elif (len(sys.argv) == 1):
     for i in range(len(convSpecData)):
         if ("total spectrum for mother state no.           2" in convSpecData[i]):
             excitedExists = True
+            break
 
     # find the line where the first total spectrum begins
     i = 0

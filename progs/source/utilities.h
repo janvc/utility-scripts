@@ -19,12 +19,12 @@
  */
 
 
-#ifndef CONSTANTS_H_
-#define CONSTANTS_H_
+#ifndef SOURCE_UTILITIES_H_
+#define SOURCE_UTILITIES_H_
 
-const double c0 = 299792458.0;
-const double Eh = 4.3597438e-18;
-const double a0 = 5.291772083e-11;
-const double me = 9.10938188e-31;
+void WriteMatrix(const Eigen::MatrixXd &mat, const int dig = 5, const bool clean = false, const double thres = 1.0e-10);
+void WriteVector(const Eigen::VectorXd &vec, const int dig = 5, const bool clean = false, const double thres = 1.0e-10);
 
-#endif /* CONSTANTS_H_ */
+
+
+#endif /* SOURCE_UTILITIES_H_ */
