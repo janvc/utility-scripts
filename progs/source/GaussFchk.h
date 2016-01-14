@@ -35,7 +35,7 @@ public:
 	int ReadInteger(const std::string &searchString) const;
 	double ReadReal(const std::string &searchString) const;
 	Eigen::VectorXd ReadVector(const std::string &searchString) const;
-	Eigen::MatrixXd ReadMatrix(const std::string &searchString, const size_t columns, const size_t rows) const;
+	Eigen::MatrixXd ReadMatrix(const std::string &searchString, const int columns, const int rows) const;
 	Eigen::MatrixXd ReadSymmetricMatrix(const std::string &searchString) const;
 
 private:

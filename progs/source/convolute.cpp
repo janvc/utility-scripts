@@ -51,7 +51,7 @@ int main(int argc, char *argv[])
 	std::string typeFlag(argv[1]);
 	std::string intFileName(argv[2]);
 	double gamma = atof(argv[3]);
-	long nPoints = atoi(argv[4]);
+	int nPoints = atoi(argv[4]);
 
 	/*
 	 * Open the input file
@@ -140,7 +140,7 @@ int main(int argc, char *argv[])
 	else
 		std::cout << "# energy [cm-1]";
 	std::cout << "  intensity [arb. units]\n";
-	for (int i = 0; i < peakPositions.size(); i++)
+	for (int i = 0; i < static_cast<int>(peakPositions.size()); i++)
 		std::cout << std::setprecision(8) << std::setw(18) << std::scientific
                   << peakPositions.at(i) << "    " << peakIntensities.at(i) << std::endl;
 
@@ -160,7 +160,7 @@ int main(int argc, char *argv[])
 	double fmin = peakPositions.front() - (width / 2.0);
 	double fmax = peakPositions.back() + (width / 2.0);
 	double delta_f = (fmax - fmin) / (nPoints - 1);
-	for (size_t i = 0; i < freqAxis.size(); i++)
+	for (int i = 0; i < static_cast<int>(freqAxis.size()); i++)
 		freqAxis.at(i) = fmin + (i * delta_f);
 
 	/*
@@ -177,8 +177,8 @@ int main(int argc, char *argv[])
 	 *           w0    is the center frequency of the peak
 	 */
 	std::vector<double> intAxis(nPoints, 0.0);
-	for (size_t i = 0; i < peakPositions.size(); i++)
-		for (size_t j = 0; j < nPoints; j++)
+	for (int i = 0; i < static_cast<int>(peakPositions.size()); i++)
+		for (int j = 0; j < nPoints; j++)
 		{
 			double value = peakIntensities.at(i) * ((0.5 * gamma)
 					     / (M_PI * ((freqAxis.at(j) - peakPositions.at(i)) * (freqAxis.at(j) - peakPositions.at(i))
@@ -200,7 +200,7 @@ int main(int argc, char *argv[])
 	 * Print the convoluted spectrum to stdout:
 	 */
 	std::cout << "\n\n\n# convoluted spectrum:\n";
-	for (size_t i = 0; i < nPoints; i++)
+	for (int i = 0; i < nPoints; i++)
 		std::cout << std::setprecision(8) << std::setw(18) << std::scientific
 				  << freqAxis.at(i) << "    " << intAxis.at(i) << std::endl;
 

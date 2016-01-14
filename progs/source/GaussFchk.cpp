@@ -96,7 +96,7 @@ Eigen::VectorXd GaussFchk::ReadVector(const std::string &searchString) const
 	return Eigen::VectorXd();
 }
 
-Eigen::MatrixXd GaussFchk::ReadMatrix(const std::string &searchString, const size_t columns, const size_t rows) const
+Eigen::MatrixXd GaussFchk::ReadMatrix(const std::string &searchString, const int columns, const int rows) const
 {
 	m_FchkFile->clear();
 	m_FchkFile->seekg(0);
