@@ -21,6 +21,7 @@
 
 #include <eigen3/Eigen/Core>
 #include <iostream>
+#include <fstream>
 #include <iomanip>
 #include <cmath>
 #include "utilities.h"
@@ -56,6 +57,35 @@ void WriteMatrix(const Eigen::MatrixXd &mat, const int dig, const bool clean, co
 }
 
 
+void WriteMatrixToFile(std::ofstream &stream, const Eigen::MatrixXd &mat, const int dig, const bool clean, const double thres)
+{
+	int width = dig + 8;
+	// write header:
+	stream << "  ";
+	for (int i = 0; i < mat.cols(); i++)
+		stream << std::setw(width) << i+1;
+	stream << std::endl;
+
+	for (int i = 0; i < mat.rows(); i++)
+	{
+		// write row number
+		stream << std::setw(5) << i+1;
+		for (int j = 0; j < mat.cols(); j++)
+		{
+			if (clean)
+			{
+				if (std::abs(mat(i,j)) > thres)
+					stream << std::scientific << std::setprecision(dig) << std::setw(width) << mat(i,j);
+				else
+					stream << std::setw(width) << "0";
+			}
+			else
+				stream << std::scientific << std::setprecision(dig) << std::setw(width) << mat(i,j);
+		}
+		stream << std::endl;
+	}
+}
+
 void WriteVector(const Eigen::VectorXd &vec, const int dig, const bool clean, const double thres)
 {
 	int width = dig + 8;
@@ -73,6 +103,36 @@ void WriteVector(const Eigen::VectorXd &vec, const int dig, const bool clean, co
 		else
 			std::cout << std::scientific << std::setprecision(dig) << std::setw(width) << vec(i) << std::endl;
 	}
+}
+
+
+void WriteVectorToFile(std::ofstream &stream, const Eigen::VectorXd &vec, const int dig, const bool clean, const double thres)
+{
+	int width = dig + 8;
+
+	for (int i = 0; i < vec.size(); i++)
+	{
+		stream << std::setw(5) << i+1;
+		if (clean)
+		{
+			if (std::abs(vec(i)) > thres)
+				stream << std::scientific << std::setprecision(dig) << std::setw(width) << vec(i) << std::endl;
+			else
+				stream << std::setw(width) << "0" << std::endl;
+		}
+		else
+			stream << std::scientific << std::setprecision(dig) << std::setw(width) << vec(i) << std::endl;
+	}
+}
+
+
+void WriteFortranNumber(std::ofstream &stream, const double number)
+{
+	std::ostringstream strstr;
+	strstr << std::scientific << std::setprecision(8) << std::setw(15) << std::setfill(' ') << number;
+	std::string str = strstr.str();
+	std::replace(str.begin(), str.end(), 'e', 'd');
+	stream << str;
 }
 
 

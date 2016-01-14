@@ -23,8 +23,10 @@
 #define SOURCE_UTILITIES_H_
 
 void WriteMatrix(const Eigen::MatrixXd &mat, const int dig = 5, const bool clean = false, const double thres = 1.0e-10);
+void WriteMatrixToFile(std::ofstream &stream, const Eigen::MatrixXd &mat, const int dig = 5, const bool clean = false, const double thres = 1.0e-10);
 void WriteVector(const Eigen::VectorXd &vec, const int dig = 5, const bool clean = false, const double thres = 1.0e-10);
-
+void WriteVectorToFile(std::ofstream &stream, const Eigen::VectorXd &vec, const int dig = 5, const bool clean = false, const double thres = 1.0e-10);
+void WriteFortranNumber(std::ofstream &stream, const double number);
 
 
 #endif /* SOURCE_UTILITIES_H_ */
