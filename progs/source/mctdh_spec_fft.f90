@@ -23,6 +23,7 @@ integer,parameter :: inputio = 1                    ! IO unit for the input file
 integer,parameter :: specio = 2                     ! IO unit for the autocorrelation output
 integer,parameter :: autoio = 3                     ! IO unit for the spectrum output
 real(dp),parameter :: fs2au = 41.34137333656_dp     ! conversion between femtoseconds and atomic units of time
+real(dp),parameter :: au2ev = 27.21138344_dp        ! conversion between Hartree and electron Volt
 real(dp),parameter :: pi = 3.1415926535897932_dp    ! PI
 integer :: nlines                                   ! number of lines (= time points) in the input
 integer :: N                                        ! number of time points
@@ -118,6 +119,12 @@ do m = shift, size(spec) - 1 + shift
                               auto_double(k + 1) * exp(2.0_dp * pi * (0.0_dp, 1.0_dp) * real(k*m, dp) / real(size(spec), dp))
     enddo
 enddo
+
+! transform the frequency axis to angular frequency in eV:
+freq = freq * 2.0_dp * pi * au2ev
+
+! scale the spectrum with the square root of the number of points:
+spec = spec / sqrt(real(size(spec) - 1))
 
 ! write the results to the output files:
 open(unit=autoio,file="auto_out.dat",status='replace',action='write')
