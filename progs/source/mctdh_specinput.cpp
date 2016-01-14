@@ -29,16 +29,37 @@
 #include <eigen3/Eigen/Core>
 #include <eigen3/Eigen/Eigenvalues>
 #include "constants.h"
+#include "utilities.h"
 
 
-//void writeVector(const Eigen::VectorXd &vector, const size_t dig = 8, const bool clean = false);
-void writeVector(const Eigen::VectorXd &vector);
-void writeMatrix(const Eigen::MatrixXd &matrix);
-void printLayer(const int layer);
-
-
-int main()
+/*
+ * Call this program like:
+ *
+ * ./mctdh_specinput <dE> <threshold>
+ *
+ * dE:        the adiabatic electronic excitation energy in eV
+ * threshold: the cutoff threshold for including terms in
+ *            the Hamiltonian (optional, default zero)
+ *
+ * The following files must be present in the working directory:
+ *
+ * 'gs_freqs'                 the ground and excited state normal mode frequencies in cm-1
+ * 'es_freqs'
+ * 'Displacement_Vector.dat'  the vector K and the matrix J as output from FCClasses
+ * 'Duschinsky_Matrix.dat'
+ */
+int main(int argc, char *argv[])
 {
+	/*
+	 * Test for the command arguments:
+	 */
+	if (argc < 2)
+	{
+		std::cerr << "ERROR: wrong number of arguments\n";
+		return 2;
+	}
+	double dE = atof(argv[1]);
+
 	/*
 	 * Test for existence of the required files.
 	 */
@@ -134,14 +155,35 @@ int main()
 		zpe1 += 0.5 * sqrt(f1(i));
 		zpe2 += 0.5 * sqrt(f2(i));
 	}
-	std::cout << "Ground state zero-point energy:" << std::scientific << std::setprecision(4) << zpe1 << " Eh\n";
-	std::cout << "Excited state zero-point energy:" << std::scientific << std::setprecision(4) << zpe2 << " Eh\n";
-	std::cout << "Difference:" << std::scientific << std::setprecision(4) << zpe2 - zpe1 << " Eh\n";
-	std::cout << "half Sum of v1:" << 0.5 * v1.sum() << std::endl;
-	std::cout << "half Sum of v2:" << 0.5 * v2.sum() << std::endl;
 
 
 	/*
+	 * Open the log file and write some statistics:
+	 */
+	std::ofstream logFile("log");
+
+	logFile << "Number of normal modes: " << Nmodes << std::endl;
+	logFile << "Ground state force constants:\n";
+	WriteVectorToFile(logFile, f1);
+	logFile << "Excited state force constants:\n";
+	WriteVectorToFile(logFile, f2);
+	logFile << "Ground state zero-point Energy: " << zpe1 << "Eh\n";
+	logFile << "Excited state zero-point Energy: " << zpe2 << "Eh\n";
+	logFile << "Displacement Vector:\n";
+	WriteVectorToFile(logFile, K);
+	logFile << "Duschinsky Matrix:\n";
+	WriteMatrixToFile(logFile, J, 3, true);
+	logFile << "Metric of the Duschinsky Matrix:\n";
+	WriteMatrixToFile(logFile, J.transpose() * J, 3, true);
+	logFile << "Frobenius norm of the Duschinsky matrix: " << J.norm() << std::endl;
+	logFile << "Determinant of the Duschinsky matrix: " << J.determinant() << std::endl;
+
+	/*
+	 * ############################################################################################
+	 *                                  calculate the new PES parameters
+	 * ############################################################################################
+	 *
+	 *
 	 * Calculate the new force constants.
 	 */
 	Eigen::VectorXd fp(Nmodes);
@@ -168,8 +210,8 @@ int main()
 	/*
 	 * Calculate the couplings.
 	 */
-	Eigen::MatrixXd phi(Nmodes,Nmodes);
-	Eigen::MatrixXd phiFull(Nmodes,Nmodes);
+	Eigen::MatrixXd phi(Eigen::MatrixXd::Zero(Nmodes,Nmodes));
+	Eigen::MatrixXd phiFull(Eigen::MatrixXd::Zero(Nmodes,Nmodes));
 	for (int m = 0; m < Nmodes; m++)
 	{
 		for (int o = m + 1; o < Nmodes; o++)
@@ -186,14 +228,25 @@ int main()
 
 
 	/*
-	 * Calculate the energy shifts. Shift each DOF down by its ZPE
+	 * Calculate the energy shifts.
 	 */
 	Eigen::VectorXd d(Nmodes);
 	for (int i = 0; i < Nmodes; i++)
-		d(i) = (0.5 * f2(i) * K(i) * K(i)) - (sqrt(f2(i)) / 2.0);
+		d(i) = (0.5 * f2(i) * K(i) * K(i));
+
+	/*
+	 * write the coupling matrix to the log file:
+	 */
+	logFile << "Coupling matrix phi with the force constants fp on the diagonal:\n";
+	WriteMatrixToFile(logFile, phiFull, 3, true);
 
 
 	/*
+	 * ############################################################################################
+	 *                                  write the MCTDH files
+	 * ############################################################################################
+	 *
+	 *
 	 * Now we can finally write the MCTDH input and operator files :)
 	 * First, inquire the desired base-name for the files.
 	 */
@@ -214,9 +267,10 @@ int main()
 	}
 	std::ofstream inputFile(inputFileName);
 	std::ofstream operatorFile(operatorFileName);
-	std::ofstream logFile("log");
+
 	inputFile.precision(1);
 	operatorFile.precision(8);
+
 	/*
 	 * The run-section
 	 */
@@ -228,12 +282,14 @@ int main()
 	inputFile << "    tpsi =\n";
 	inputFile << "    psi gridpop auto steps graphviz\n";
 	inputFile << "end-run-section\n\n";
+
 	/*
 	 * The operator-section
 	 */
 	inputFile << "operator-section\n";
 	inputFile << "    opname = " << basename << std::endl;
 	inputFile << "end-operator-section\n\n";
+
 	/*
 	 * The mlbasis-section
 	 */
@@ -276,19 +332,21 @@ int main()
 			          << " q_" << std::setfill('0') << std::setw(3) << sortedModes.at(i+1) + 1 << "]\n";
 	}
 	inputFile << "end-mlbasis-section\n\n";
+
 	/*
 	 * The pbasis-section
 	 */
 	inputFile << "pbasis-section\n";
 	for (int i = 0; i < Nmodes; i++)
 		inputFile << "    q_" << std::setfill('0') << std::setw(3) << i + 1
-				  << "  ho  14  xi-xf  "
+				  << "  ho  " << std::setw(3) << std::setfill(' ') << lrint(-0.8 * log(fp(i))) << "  xi-xf  "
 				  //
 				  // the basis boundarie are -kappa / fp +- 4 / fp**1/4
 				  //
-				  << std::fixed << std::setfill(' ') << std::setw(8) << -(kappa(i) / fp(i)) - (3.0 / pow(fp(i), 0.3))
-				  << std::fixed << std::setfill(' ') << std::setw(8) << -(kappa(i) / fp(i)) + (3.0 / pow(fp(i), 0.3)) << std::endl;
+				  << std::fixed << std::setfill(' ') << std::setw(8) << -(kappa(i) / fp(i)) - (2.1 / pow(fp(i), 0.305))
+				  << std::fixed << std::setfill(' ') << std::setw(8) << -(kappa(i) / fp(i)) + (2.1 / pow(fp(i), 0.305)) << std::endl;
 	inputFile << "end-pbasis-section\n\n";
+
 	/*
 	 * The integrator section
 	 */
@@ -296,6 +354,7 @@ int main()
 	inputFile << "    vmf\n";
 	inputFile << "    abm = 6, 1.0d-7, 0.01d0\n";
 	inputFile << "end-integrator-section\n\n";
+
 	/*
 	 * The init wf section
 	 */
@@ -321,6 +380,7 @@ int main()
 	operatorFile << "        " << basename << std::endl;
 	operatorFile << "    end-title\n";
 	operatorFile << "end-op_define-section\n\n";
+
 	/*
 	 * The parameter section
 	 */
@@ -331,31 +391,53 @@ int main()
 					 << "  =  1.0\n";
 	// the ground state force constants
 	for (int i = 0; i < Nmodes; i++)
-		operatorFile << "    f1_" << std::setfill('0') << std::setw(3) << i + 1
-					 << "      = " << std::scientific << std::setw(15) << std::setfill(' ') << f1(i) << std::endl;
+	{
+		operatorFile << "    f1_" << std::setfill('0') << std::setw(3) << i + 1 << "      = ";
+		WriteFortranNumber(operatorFile, f1(i));
+		operatorFile << std::endl;
+	}
 	// the excited state force constants
 	for (int i = 0; i < Nmodes; i++)
-		operatorFile << "    f2_" << std::setfill('0') << std::setw(3) << i + 1
-					 << "      = " << std::scientific << std::setw(15) << std::setfill(' ') << f2(i) << std::endl;
+	{
+		operatorFile << "    f2_" << std::setfill('0') << std::setw(3) << i + 1 << "      = ";
+		WriteFortranNumber(operatorFile, f2(i));
+		operatorFile << std::endl;
+	}
 	// the new effective excited state force constants
 	for (int i = 0; i < Nmodes; i++)
-		operatorFile << "    fp_" << std::setfill('0') << std::setw(3) << i + 1
-					 << "      = " << std::scientific << std::setw(15) << std::setfill(' ') << fp(i) << std::endl;
+	{
+		operatorFile << "    fp_" << std::setfill('0') << std::setw(3) << i + 1 << "      = ";
+		WriteFortranNumber(operatorFile, fp(i));
+		operatorFile << std::endl;
+	}
 	// the couplings
 	for (int i = 0; i < Nmodes; i++)
 		for (int j = i + 1; j < Nmodes; j++)
+		{
 			operatorFile << "    phi_" << std::setfill('0') << std::setw(3) << i + 1
-						 << "_" << std::setfill('0') << std::setw(3) << j + 1
-						 << " = " << std::scientific << std::setw(15) << std::setfill(' ') << phi(i,j) << std::endl;
+						 << "_" << std::setfill('0') << std::setw(3) << j + 1 << " = ";
+			WriteFortranNumber(operatorFile, phi(i,j));
+			operatorFile << std::endl;
+		}
 	// the first-order coefficients (shifts)
 	for (int i = 0; i < Nmodes; i++)
-		operatorFile << "    kappa_" << std::setfill('0') << std::setw(3) << i + 1
-					 << "   = " << std::scientific << std::setw(15) << std::setfill(' ') << kappa(i) << std::endl;
+	{
+		operatorFile << "    kappa_" << std::setfill('0') << std::setw(3) << i + 1 << "   = ";
+		WriteFortranNumber(operatorFile, kappa(i));
+		operatorFile << std::endl;
+	}
 	// the energy offsets
 	for (int i = 0; i < Nmodes; i++)
-		operatorFile << "    d_" << std::setfill('0') << std::setw(3) << i + 1
-					 << "       = " << std::scientific << std::setw(15) << std::setfill(' ') << d(i) << std::endl;
-	operatorFile << "end-parameter-section\n\n";
+	{
+		operatorFile << "    d_" << std::setfill('0') << std::setw(3) << i + 1 << "       = ";
+		WriteFortranNumber(operatorFile, d(i));
+		operatorFile << std::endl;
+	}
+	// the electronic offset minus the ground state ZPE
+	operatorFile << "    dE          = ";
+	WriteFortranNumber(operatorFile, dE / Eh2eV - zpe1);
+	operatorFile << "\nend-parameter-section\n\n";
+
 	/*
 	 * The hamiltonian section
 	 */
@@ -384,7 +466,9 @@ int main()
 	for (int i = 0; i < Nmodes; i++)
 			operatorFile << "d_" << std::setfill('0') << std::setw(3) << i + 1
 						 << "       |" << i + 1 << " 1\n";
+	operatorFile << "dE          |1 1\n";
 	operatorFile << "end-hamiltonian-section\n\n";
+
 	/*
 	 * One-dimensional Hamiltonians for the ground state normal modes
 	 */
@@ -404,21 +488,17 @@ int main()
 	 * Diagonalize the coupling matrix to get the force constants back
 	 */
 	Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> phiSolv(phiFull);
-	logFile << "difference between eigenvalues of phi and force constants:\n";
-	for (int i = 0; i < Nmodes; i++)
-		logFile << phiSolv.eigenvalues()(i) << "   " << sqrt(phiSolv.eigenvalues()(i) / factor) << "   " << f2(i) << "   " << (phiSolv.eigenvalues() - f2)(i) << std::endl;
-	logFile << "Norm of that: " << (phiSolv.eigenvalues() - f2).norm() << std::endl;
+	logFile << "Eigenvalues of the full force constant / coupling matrix:\n";
+	WriteVectorToFile(logFile, phiSolv.eigenvalues());
 
+	/*
+	 * Solve the linear system of the full coupling matrix and the kappa vector
+	 * to get the coordinates of the minimum
+	 */
 	Eigen::ColPivHouseholderQR<Eigen::MatrixXd> phiLin(phiFull);
 	Eigen::VectorXd minima = phiLin.solve(-kappa);
-	logFile << "shift vector, minimum coordinates, J * q_0, J^T * q_0\n";
-	Eigen::VectorXd mult1 = J * minima;
-	Eigen::VectorXd mult2 = J.transpose() * minima;
-	for (int i = 0; i < Nmodes; i++)
-		logFile << std::setw(15) << std::scientific << K(i) << "   "
-				<< std::setw(15) << std::scientific << minima(i) << "   "
-				<< std::setw(15) << std::scientific << mult1(i) << "   "
-				<< std::setw(15) << std::scientific << mult2(i) << std::endl;
+	logFile << "minimum coordinates\n";
+	WriteVectorToFile(logFile, minima);
 
 
 	/*
@@ -449,11 +529,7 @@ int main()
 	/*
 	 * Calculate the 1st moment of the spectrum analytically
 	 */
-	std::cout << "Enter the VERTICAL excitation energy.\n>>> ";
-	double Evert;
-	std::cin >> Evert;
-
-	double moment = Evert;
+	double moment = dE;
 	for (int i = 0; i < Nmodes; i++)
 		moment += 0.25 * (fp(i) - f1(i)) / sqrt(f1(i));
 
@@ -461,44 +537,3 @@ int main()
 
 	return 0;
 }
-
-
-/*
- * Write a vector to stdout with 'dig' decimal places (default 8) and setting entries
- * with a magnitude less than a certain threshold to zero if 'clean' is true
- */
-//void writeVector(const Eigen::VectorXd &vector, const size_t dig = 8, const bool clean = false)
-void writeVector(const Eigen::VectorXd &vector)
-{
-	//double threshold = vector.norm() / 1.0e-10;
-
-	for (int i = 0; i < vector.size(); i++)
-	{
-		std::cout << vector(i);
-		std::cout << std::endl;
-	}
-}
-
-
-void writeMatrix(const Eigen::MatrixXd &matrix)
-{
-	for (int i = 0; i < matrix.rows(); i++)
-	{
-		for (int j = 0; j < matrix.cols(); j++)
-		{
-			std::cout << " " << matrix(i,j);
-		}
-		std::cout << std::endl;
-	}
-}
-
-void printLayer(const int layer, const int layers, const std::vector<int> sortedModes, const int lastMode)
-{
-	if (layer == layers)
-	{
-
-	}
-	else
-		printLayer(layer + 1, layers, sortedModes, lastMode);
-}
-
