@@ -34,12 +34,15 @@ void WriteMatrix(const Eigen::MatrixXd &mat, const int dig, const bool clean, co
 	std::cout << "  ";
 	for (int i = 0; i < mat.cols(); i++)
 		std::cout << std::setw(width) << i+1;
+	std::cout << std::endl << "       ";
+	for (int i = 0; i < mat.cols(); i++)
+		std::cout << std::string(width,'-');
 	std::cout << std::endl;
 
 	for (int i = 0; i < mat.rows(); i++)
 	{
 		// write row number
-		std::cout << std::setw(5) << i+1;
+		std::cout << std::setw(5) << i+1 << " |";
 		for (int j = 0; j < mat.cols(); j++)
 		{
 			if (clean)
@@ -53,7 +56,12 @@ void WriteMatrix(const Eigen::MatrixXd &mat, const int dig, const bool clean, co
 				std::cout << std::scientific << std::setprecision(dig) << std::setw(width) << mat(i,j);
 		}
 		std::cout << std::endl;
+
 	}
+	std::cout << "       ";
+	for (int i = 0; i < mat.cols(); i++)
+		std::cout << std::string(width,'-');
+	std::cout << std::endl;
 }
 
 
@@ -64,12 +72,15 @@ void WriteMatrixToFile(std::ofstream &stream, const Eigen::MatrixXd &mat, const 
 	stream << "  ";
 	for (int i = 0; i < mat.cols(); i++)
 		stream << std::setw(width) << i+1;
+	stream << std::endl << "      /";
+	for (int i = 0; i < mat.cols(); i++)
+		stream << std::string(width,'-');
 	stream << std::endl;
 
 	for (int i = 0; i < mat.rows(); i++)
 	{
 		// write row number
-		stream << std::setw(5) << i+1;
+		stream << std::setw(5) << i+1 << " |";
 		for (int j = 0; j < mat.cols(); j++)
 		{
 			if (clean)
@@ -84,6 +95,10 @@ void WriteMatrixToFile(std::ofstream &stream, const Eigen::MatrixXd &mat, const 
 		}
 		stream << std::endl;
 	}
+	stream << "       ";
+	for (int i = 0; i < mat.cols(); i++)
+		stream << std::string(width,'-');
+	stream << std::endl;
 }
 
 void WriteVector(const Eigen::VectorXd &vec, const int dig, const bool clean, const double thres)
@@ -92,7 +107,7 @@ void WriteVector(const Eigen::VectorXd &vec, const int dig, const bool clean, co
 
 	for (int i = 0; i < vec.size(); i++)
 	{
-		std::cout << std::setw(5) << i+1;
+		std::cout << std::setw(5) << i+1 << " |";
 		if (clean)
 		{
 			if (std::abs(vec(i)) > thres)
@@ -112,7 +127,7 @@ void WriteVectorToFile(std::ofstream &stream, const Eigen::VectorXd &vec, const 
 
 	for (int i = 0; i < vec.size(); i++)
 	{
-		stream << std::setw(5) << i+1;
+		stream << std::setw(5) << i+1 << " |";
 		if (clean)
 		{
 			if (std::abs(vec(i)) > thres)
