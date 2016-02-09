@@ -24,9 +24,17 @@
 
 void WriteMatrix(const Eigen::MatrixXd &mat, const int dig = 5, const bool clean = false, const double thres = 1.0e-10);
 void WriteMatrixToFile(std::ofstream &stream, const Eigen::MatrixXd &mat, const int dig = 5, const bool clean = false, const double thres = 1.0e-10);
+
 void WriteVector(const Eigen::VectorXd &vec, const int dig = 5, const bool clean = false, const double thres = 1.0e-10);
 void WriteVectorToFile(std::ofstream &stream, const Eigen::VectorXd &vec, const int dig = 5, const bool clean = false, const double thres = 1.0e-10);
+
 void WriteFortranNumber(std::ofstream &stream, const double number);
 
+Eigen::Vector3d calc_com(Eigen::VectorXd x, Eigen::VectorXd m);
+Eigen::Matrix3d calc_inert(Eigen::VectorXd x, Eigen::VectorXd m);
+
+Eigen::MatrixXd vibrationalAnalysis(const Eigen::VectorXd &positions, const Eigen::VectorXd &masses, const Eigen::MatrixXd &hessian);
+
+void createMCTDHfiles(const Eigen::MatrixXd &J, const Eigen::VectorXd &K, const Eigen::VectorXd &f1, const Eigen::VectorXd &f2, const double dE, std::ofstream &logFile);
 
 #endif /* SOURCE_UTILITIES_H_ */

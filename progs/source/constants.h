@@ -26,6 +26,7 @@ const double c0 = 299792458.0;
 const double Eh = 4.3597438e-18;
 const double a0 = 5.291772083e-11;
 const double me = 9.10938188e-31;
+const double amu = 1.66053873e-27;
 const double hbar = 1.054571596e-34;
 const double amu2au = 1822.88848325;
 const double Eh2eV = 27.21138344;

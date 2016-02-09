@@ -25,26 +25,40 @@
 #include <cmath>
 #include <eigen3/Eigen/Core>
 #include <eigen3/Eigen/Eigenvalues>
+#include <boost/program_options.hpp>
 #include "GaussFchk.h"
 #include "utilities.h"
 #include "constants.h"
 
-Eigen::Vector3d calc_com(Eigen::VectorXd x, Eigen::VectorXd m);
-Eigen::Matrix3d calc_inert(Eigen::VectorXd x, Eigen::VectorXd m);
 void gram_schmidt(Eigen::MatrixXd &d);
 
-int main()
+int main(int argc, char *argv[])
 {
-	int digits = 4;
-	bool clean = true;
+	/*
+	 * Some output-related settings
+	 */
+	int digits = 5;				// number of digits to write out
+	bool clean = true;			// do we want to insert zeros?
+	double threshold = 1.0e-15;	// threshold for inserting zeros
 
-	std::ifstream fchkFile("h2o_freq.fchk", std::ifstream::in);
-	GaussFchk fchk(fchkFile);
-
-	// read the data from the formatted checkpoint file:
-	int Natoms = fchk.ReadInteger("Number of atoms");
-	int Ncoords = 3 * Natoms;
-	int Nmodes = Ncoords - 6;
+	/*
+	 * Process the command options
+	 */
+	std::string filename;
+	namespace po = boost::program_options;
+	po::options_description desc("Allowed options");
+	desc.add_options()
+		("help,h", "produce this help message")
+		("file,f", po::value<std::string>(&filename)->required(), "the Gaussian formatted checkpoint file to be processed")
+	;
+	po::variables_map vm;
+	po::store(po::parse_command_line(argc, argv, desc), vm);
+	if (vm.count("help"))
+	{
+		std::cout << desc << std::endl;
+		return 1;
+	}
+	po::notify(vm);
 
 	/*
 	 * Read the basic information about the system from the formatted checkpoint file:
@@ -54,21 +68,24 @@ int main()
 	 * "f_cart"     the non-mass-weighted cartesian hessian (size 3N*3N) **** eq. (1) ****
 	 * "GaussModes" the matrix of vibrational diplacements as calculated by Gaussian (size 3N*3N-6)
 	 */
+	std::ifstream fchkFile(filename, std::ifstream::in);
+	GaussFchk fchk(fchkFile);
+	int Natoms = fchk.ReadInteger("Number of atoms");
+	int Ncoords = 3 * Natoms;
+	int Nmodes = Ncoords - 6;
 	Eigen::VectorXd x = fchk.ReadVector("Current cartesian coordinates");
 	Eigen::VectorXd Masses = fchk.ReadVector("Real atomic weights");
 	Eigen::MatrixXd f_cart = fchk.ReadSymmetricMatrix("Cartesian Force Constants");
 	Eigen::MatrixXd GaussModes = fchk.ReadMatrix("Vib-Modes", Nmodes, Ncoords);
 
-	// convert masses to atomic units:
-	Masses = Masses * amu2au;
-	double TotMass = Masses.sum();
-
 	/*
 	 * Calculate some mass-related quantities:
 	 *
-	 * "MassVector" Vector of masses (in au) associated with every coordinate: (m1, m1, m1, m2, m2, m2, ... mN, mN, mN) (length 3N)
+	 * "TotMass"    The total mass of the molecule in amu
+	 * "MassVector" Vector of masses (in amu) associated with every coordinate: (m1, m1, m1, m2, m2, m2, ... mN, mN, mN) (length 3N)
 	 * "MassInvMat" Diagonal matrix of inverse square roots of masses: diag(1/sqrt(mi)) (size 3N*3N)
 	 */
+	double TotMass = Masses.sum();
 	Eigen::VectorXd MassVector(Ncoords);
 	for (int i = 0; i <  Natoms; i++)
 	{
@@ -78,7 +95,7 @@ int main()
 	}
 	Eigen::MatrixXd MassInvMat = Eigen::MatrixXd::Zero(Ncoords, Ncoords);
 	for (int i = 0; i < Ncoords; i++)
-		MassInvMat(i,i) = 1.0 / sqrt(MassVector(i));
+		MassInvMat(i,i) = 1.0 / sqrt(double(MassVector(i)));
 
 	/*
 	 * Calculate mass-weighted coordinates:
@@ -87,36 +104,10 @@ int main()
 	 */
 	Eigen::VectorXd q(Ncoords);
 	for (int i = 0; i < Ncoords; i++)
-		q(i) = x(i) * sqrt(MassVector(i));
+		q(i) = x(i) * sqrt(double(MassVector(i)));
 
 	/*
-	 * WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE
-	 * WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE
-	 */
-	std::cout << "Number of atoms: " << Natoms << std::endl;
-	std::cout << "atomic coordinates in bohr:\n";
-	WriteVector(x, digits, clean);
-	std::cout << "atomic masses in au:\n";
-	WriteVector(Masses, digits, clean);
-	std::cout << "total mass in au: " << TotMass << std::endl;
-	std::cout << "mass vector:\n";
-	WriteVector(MassVector, digits, clean);
-	std::cout << "mass-weighted coordinates:\n";
-	WriteVector(q, digits, clean);
-	std::cout << "inverse mass matrix:\n";
-	WriteMatrix(MassInvMat, digits, clean);
-	std::cout << "non-mass-weighted cartesian hessian\n";
-	WriteMatrix(f_cart, digits, clean);
-	std::cout << "Gaussian Modes\n";
-	WriteMatrix(GaussModes, digits, clean);
-	/*
-	 * WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE
-	 * WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE
-	 */
-
-	/*
-	 * Calculate and diagonalize
-	 * the mass-weighted hessian:
+	 * Calculate and diagonalize the mass-weighted hessian:
 	 *
 	 * f_mwc(i,j) = f_cart(i,j) / sqrt(mi*mj) = M^T * f_cart * M  **** eq. (2) ****
 	 * where M is the matrix of inverse masses
@@ -128,102 +119,15 @@ int main()
 	Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> HessianDiag(f_mwc);
 
 	/*
-	 * WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE
-	 * WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE
-	 */
-	std::cout << "mass-weighted cartesian hessian:\n";
-	WriteMatrix(f_mwc, digits, clean);
-	std::cout << "eigenvalues of the mass-weighted cartesian hessian (au and cm-1):\n";
-	for (int i = 0; i < Ncoords; i++)
-	{
-		double value = HessianDiag.eigenvalues()(i);
-		double wavenumber = std::sqrt(std::abs(value) * Eh / (a0 * a0 * me)) / (2.0 * M_PI * c0 * 100.0);
-		std::cout << std::scientific << std::setprecision(4) << std::setw(12) << value
-				  << "  " << std::fixed << std::setw(9) << wavenumber << std::endl;
-	}
-	/*
-	 * WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE
-	 * WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE
-	 */
-
-	/*
 	 * Calculate the center of mass: **** eq. (3) ****
 	 */
 	Eigen::Vector3d com = calc_com(x, Masses);
-
-	/*
-	 * WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE
-	 * WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE
-	 */
-	std::cout << "center of mass in bohr:\n";
-	WriteVector(com, digits, clean);
-	/*
-	 * WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE
-	 * WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE
-	 */
-
-	// Translate the molecule to the center of mass:
-	for (int i = 0; i < Natoms; i++)
-	{
-		x(3 * i + 0) -= com(0);
-		x(3 * i + 1) -= com(1);
-		x(3 * i + 2) -= com(2);
-	}
 
 	/*
 	 * Calculate and diagonalize the inertia tensor: **** eq. (4) ****
 	 */
 	Eigen::Matrix3d inert = calc_inert(x, Masses);
 	Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> InertDiag(inert);
-
-	/*
-	 * WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE
-	 * WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE
-	 */
-	std::cout << "inertia tensor:\n";
-	WriteMatrix(inert, digits, clean);
-	std::cout << "moments of inertia:\n";
-	WriteVector(InertDiag.eigenvalues(), digits, clean);
-	std::cout << "principal axes:\n";
-	WriteMatrix(InertDiag.eigenvectors(), digits, clean);
-	std::cout << "metric of the principal axes:\n";
-	WriteMatrix(InertDiag.eigenvectors().transpose() * InertDiag.eigenvectors(), digits, clean);
-	/*
-	 * WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE
-	 * WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE
-	 */
-
-	// rotate the molecule to the inertia frame:
-	Eigen::VectorXd y(Ncoords);
-	Eigen::Matrix3d rotmat;
-	rotmat = InertDiag.eigenvectors();
-	for (int i = 0; i < Natoms; i++)
-	{
-		y(3 * i + 0) = rotmat.transpose()(0,0) * x(3 * i + 0)
-				     + rotmat.transpose()(0,1) * x(3 * i + 1)
-					 + rotmat.transpose()(0,2) * x(3 * i + 2);
-		y(3 * i + 1) = rotmat.transpose()(1,0) * x(3 * i + 0)
-					 + rotmat.transpose()(1,1) * x(3 * i + 1)
-					 + rotmat.transpose()(1,2) * x(3 * i + 2);
-		y(3 * i + 2) = rotmat.transpose()(2,0) * x(3 * i + 0)
-				     + rotmat.transpose()(2,1) * x(3 * i + 1)
-					 + rotmat.transpose()(2,2) * x(3 * i + 2);
-	}
-	x = y;
-	/*
-	 * WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE
-	 * WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE
-	 */
-	std::cout << "atomic coordinates after transforming to the inertial frame:\n";
-	WriteVector(x, digits, clean);
-	/*
-	 * WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE
-	 * WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE
-	 */
-
-	// calculate mass-weighted coordinates again:
-	for (int i = 0; i < Ncoords; i++)
-		q(i) = x(i) * sqrt(MassVector(i));
 
 	/*
 	 * Create the D matrix **** sec. 2.3 ****
@@ -238,32 +142,27 @@ int main()
 			D(3*j+0, i) = 0;
 			D(3*j+1, i) = 0;
 			D(3*j+2, i) = 0;
-			D(3*j+i, i) = sqrt(Masses(j));
+			D(3*j+i, i) = sqrt(double(Masses(j)));
 		}
 
 	for (int i = 0; i < Natoms; i++)
 	{
-		D(3*i+0, 3) =  0;
-		D(3*i+1, 3) = -sqrt(Masses(i)) * (x(3*i+0) * rotmat(2,0)
-										+ x(3*i+1) * rotmat(2,1)
-										+ x(3*i+2) * rotmat(2,2));
-		D(3*i+2, 3) =  sqrt(Masses(i)) * (x(3*i+0) * rotmat(1,0)
-										+ x(3*i+1) * rotmat(1,1)
-										+ x(3*i+2) * rotmat(1,2));
-		D(3*i+0, 4) =  sqrt(Masses(i)) * (x(3*i+0) * rotmat(2,0)
-										+ x(3*i+1) * rotmat(2,1)
-										+ x(3*i+2) * rotmat(2,2));
-		D(3*i+1, 4) =  0;
-		D(3*i+2, 4) = -sqrt(Masses(i)) * (x(3*i+0) * rotmat(0,0)
-										+ x(3*i+1) * rotmat(0,1)
-										+ x(3*i+2) * rotmat(0,2));
-		D(3*i+0, 5) = -sqrt(Masses(i)) * (x(3*i+0) * rotmat(1,0)
-										+ x(3*i+1) * rotmat(1,1)
-										+ x(3*i+2) * rotmat(1,2));
-		D(3*i+1, 5) =  sqrt(Masses(i)) * (x(3*i+0) * rotmat(0,0)
-										+ x(3*i+1) * rotmat(0,1)
-										+ x(3*i+2) * rotmat(0,2));
-		D(3*i+2, 5) =  0;
+		Eigen::Vector3d x_int;
+		x_int(0) = x(3*i+0) - com(0);
+		x_int(1) = x(3*i+1) - com(1);
+		x_int(2) = x(3*i+2) - com(2);
+		Eigen::Matrix3d rotmat = InertDiag.eigenvectors().transpose();
+		x_int = rotmat * x_int;
+
+		D(3*i+0, 3) = (x_int(1) * rotmat(2,0) - x_int(2) * rotmat(1,0)) * sqrt(double(Masses(i)));
+		D(3*i+1, 3) = (x_int(1) * rotmat(2,1) - x_int(2) * rotmat(1,1)) * sqrt(double(Masses(i)));
+		D(3*i+2, 3) = (x_int(1) * rotmat(2,2) - x_int(2) * rotmat(1,2)) * sqrt(double(Masses(i)));
+		D(3*i+0, 4) = (x_int(2) * rotmat(0,0) - x_int(0) * rotmat(2,0)) * sqrt(double(Masses(i)));
+		D(3*i+1, 4) = (x_int(2) * rotmat(0,1) - x_int(0) * rotmat(2,1)) * sqrt(double(Masses(i)));
+		D(3*i+2, 4) = (x_int(2) * rotmat(0,2) - x_int(0) * rotmat(2,2)) * sqrt(double(Masses(i)));
+		D(3*i+0, 5) = (x_int(0) * rotmat(1,0) - x_int(1) * rotmat(0,0)) * sqrt(double(Masses(i)));
+		D(3*i+1, 5) = (x_int(0) * rotmat(1,1) - x_int(1) * rotmat(0,1)) * sqrt(double(Masses(i)));
+		D(3*i+2, 5) = (x_int(0) * rotmat(1,2) - x_int(1) * rotmat(0,2)) * sqrt(double(Masses(i)));
 	}
 
 	// normalize the D matrix:
@@ -274,22 +173,10 @@ int main()
 	gram_schmidt(D);
 
 	/*
-	 * WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE
-	 * WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE
-	 */
-	std::cout << "The D matrix:\n";
-	WriteMatrix(D, digits, clean);
-	std::cout << "metric of D matrix:\n";
-	WriteMatrix(D.transpose() * D, digits, clean);
-	/*
-	 * WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE
-	 * WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE
-	 */
-
-	/*
 	 * Transform the mass-weighted Hessian to internal coordinates using the D matrix  **** eq. (6) ****
+	 * Create the 3N-6 x 3N-6 Block matrix from the lower right corner
 	 */
-	Eigen::MatrixXd f_int = D.transpose() * f_mwc * D;
+	Eigen::MatrixXd f_int = Eigen::MatrixXd(D.transpose() * f_mwc * D).block(6, 6, Nmodes, Nmodes);
 
 	/*
 	 * Diagonalize the internal Hessian **** eq. (7) ****
@@ -298,97 +185,115 @@ int main()
 	Eigen::MatrixXd L = IntHessDiag.eigenvectors();
 
 	/*
-	 * WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE
-	 * WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE
+	 * Calculate the mass-weighted cartesian displacements  **** eq. (9) ****
+	 * and the non-mass-weighted cartesian displacements    **** eq. (10) ****
 	 */
-	std::cout << "The Hessian transformed to internal coordinates:\n";
-	WriteMatrix(f_int, digits, clean);
-	std::cout << "eigenvalues of the internal hessian (au and cm-1):\n";
+	Eigen::MatrixXd l_mwc = D.block(0, 6, Ncoords, Nmodes) * L;
+	Eigen::MatrixXd l_cart = MassInvMat * l_mwc;
+	Eigen::VectorXd normalizationFactors(Nmodes);
+	Eigen::VectorXd reducedMasses(Nmodes);
+	for (int i = 0; i < Nmodes; i++)
+	{
+		double norm = Eigen::VectorXd(l_cart.col(i)).norm();
+		normalizationFactors(i) = 1.0 / norm;
+		reducedMasses(i) = normalizationFactors(i) * normalizationFactors(i);
+		l_cart.col(i) *= normalizationFactors(i);
+	}
+
+	/*
+	 * write the results to stdout
+	 */
+	std::cout << "Number of atoms: " << Natoms << std::endl;
+
+	std::cout << "atomic coordinates in bohr:\n";
+	WriteVector(x, digits, clean, threshold);
+
+	std::cout << "atomic masses in u:\n";
+	WriteVector(Masses, digits, clean, threshold);
+
+	std::cout << "total mass in au: " << TotMass << std::endl;
+
+	std::cout << "non-mass-weighted cartesian hessian\n";
+	WriteMatrix(f_cart, digits, clean, threshold);
+
+	std::cout << "mass-weighted cartesian hessian\n";
+	WriteMatrix(f_mwc, digits, clean, threshold);
+
+	std::cout << "eigenvalues of the mass-weighted cartesian hessian (au and cm-1):\n";
 	for (int i = 0; i < Ncoords; i++)
 	{
-		double value = IntHessDiag.eigenvalues()(i);
-		double wavenumber = std::sqrt(std::abs(value) * Eh / (a0 * a0 * me)) / (2.0 * M_PI * c0 * 100.0);
+		double value = HessianDiag.eigenvalues()(i);
+		double wavenumber;
+		if (value > 0)
+			wavenumber = sqrt(value * Eh / (a0 * a0 * amu)) / (2.0 * M_PI * c0 * 100.0);
+		else
+			wavenumber = -sqrt(-value * Eh / (a0 * a0 * amu)) / (2.0 * M_PI * c0 * 100.0);
 		std::cout << std::scientific << std::setprecision(4) << std::setw(12) << value
 				  << "  " << std::fixed << std::setw(9) << wavenumber << std::endl;
 	}
-	std::cout << "Eigenvectors of the internal Hessian:\n";
-	WriteMatrix(L, digits, clean);
+
+	std::cout << "center of mass in bohr:\n";
+	WriteVector(com, digits, clean, threshold);
+
+	std::cout << "inertia tensor:\n";
+	WriteMatrix(inert, digits, clean, threshold);
+
+	std::cout << "moments of inertia:\n";
+	WriteVector(InertDiag.eigenvalues(), digits, clean, threshold);
+
+	std::cout << "principal axes:\n";
+	WriteMatrix(InertDiag.eigenvectors(), digits, clean, threshold);
+
+	std::cout << "metric of the principal axes:\n";
+	WriteMatrix(InertDiag.eigenvectors().transpose() * InertDiag.eigenvectors(), digits, clean, threshold);
+
+	std::cout << "The D matrix:\n";
+	WriteMatrix(D, digits, clean, threshold);
+
+	std::cout << "metric of D matrix:\n";
+	WriteMatrix(D.transpose() * D, digits, clean, threshold);
+
+	std::cout << "The Nvib x Nvib submatrix of the internal Hessian, according to eq. (6):\n";
+	WriteMatrix(f_int, digits, clean, threshold);
+
+	std::cout << "eigenvalues of the internal hessian (au and cm-1):\n";
+	for (int i = 0; i < Nmodes; i++)
+	{
+		double value = IntHessDiag.eigenvalues()(i);
+		double wavenumber;
+		if (value > 0)
+			wavenumber = sqrt(value * Eh / (a0 * a0 * amu)) / (2.0 * M_PI * c0 * 100.0);
+		else
+			wavenumber = -sqrt(-value * Eh / (a0 * a0 * amu)) / (2.0 * M_PI * c0 * 100.0);
+		std::cout << std::scientific << std::setprecision(4) << std::setw(12) << value
+				  << "  " << std::fixed << std::setw(9) << wavenumber << std::endl;
+	}
+
+	std::cout << "eigenvectors of the internal Hessian (internal displacements):\n";
+	WriteMatrix(L, digits, clean, threshold);
+
 	std::cout << "metric of the eigenvectors:\n";
-	WriteMatrix(L.transpose() * L, digits, clean);
-	/*
-	 * WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE
-	 * WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE
-	 */
+	WriteMatrix(L.transpose() * L, digits, clean, threshold);
 
-	/*
-	 * Calculate the mass-weighted cartesian displacements  **** eq. (9) ****
-	 * and the non-mass-weighted cartesian displacements  **** eq. (10) ****
-	 */
-	Eigen::MatrixXd l_mwc = D * L;
-	Eigen::MatrixXd l_cart = MassInvMat * l_mwc;
+	std::cout << "mass-weighted cartesian displacements:\n";
+	WriteMatrix(l_mwc, digits, clean, threshold);
 
-	/*
-	 * WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE
-	 * WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE
-	 */
-	std::cout << "mass-weighted displacements:\n";
-	WriteMatrix(l_mwc, digits, clean);
-	std::cout << "metric of mass-weighted displacements:\n";
-	WriteMatrix(l_mwc.transpose() * l_mwc, digits, clean);
+	std::cout << "metric of mass-weighted cartesian displacements:\n";
+	WriteMatrix(l_mwc.transpose() * l_mwc, digits, clean, threshold);
+
 	std::cout << "cartesian displacements:\n";
-	WriteMatrix(l_cart, digits, clean);
+	WriteMatrix(l_cart, digits, clean, threshold);
+
 	std::cout << "metric of cartesian displacements:\n";
-	WriteMatrix(l_cart.transpose() * l_cart, digits, clean);
-	/*
-	 * WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE
-	 * WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE WRITE
-	 */
+	WriteMatrix(l_cart.transpose() * l_cart, digits, clean, threshold);
+
+	std::cout << "normalization factors for the cartesian displacements:\n";
+	WriteVector(normalizationFactors, digits, clean, threshold);
+
+	std::cout << "reduced masses of the normal modes:\n";
+	WriteVector(reducedMasses, digits, clean, threshold);
 
 	return 0;
-}
-
-/*
- * Calculates the center of mass of the molecule
- */
-Eigen::Vector3d calc_com(Eigen::VectorXd x, Eigen::VectorXd m)
-{
-	Eigen::Vector3d com = Eigen::Vector3d::Zero();
-
-	for (int i = 0; i < m.size(); i++)
-	{
-		com(0) += m(i) * x(3 * i + 0);
-		com(1) += m(i) * x(3 * i + 1);
-		com(2) += m(i) * x(3 * i + 2);
-	}
-	com /= m.sum();
-
-	return com;
-}
-
-/*
- * Calculates the moment of inertia of the molecule
- */
-Eigen::Matrix3d calc_inert(Eigen::VectorXd x, Eigen::VectorXd m)
-{
-	Eigen::Matrix3d inert = Eigen::Matrix3d::Zero();
-
-	Eigen::Vector3d com = calc_com(x, m);
-
-	for (int i = 0; i < m.size(); i++)
-	{
-		inert(0,0) += m(i) * ((x(3*i+1)-com(1))*(x(3*i+1)-com(1)) + (x(3*i+2)-com(2))*(x(3*i+2)-com(2)));
-		inert(1,1) += m(i) * ((x(3*i+0)-com(0))*(x(3*i+0)-com(0)) + (x(3*i+2)-com(2))*(x(3*i+2)-com(2)));
-		inert(2,2) += m(i) * ((x(3*i+0)-com(0))*(x(3*i+0)-com(0)) + (x(3*i+1)-com(1))*(x(3*i+1)-com(1)));
-		inert(0,1) -= m(i) *  (x(3*i+0)-com(0)) * (x(3*i+1)-com(1));
-		inert(0,2) -= m(i) *  (x(3*i+0)-com(0)) * (x(3*i+2)-com(2));
-		inert(1,2) -= m(i) *  (x(3*i+1)-com(1)) * (x(3*i+2)-com(2));
-	}
-
-	inert(1,0) = inert(0,1);
-	inert(2,0) = inert(0,2);
-	inert(2,1) = inert(1,2);
-
-	return inert;
 }
 
 /*
@@ -413,8 +318,3 @@ void gram_schmidt(Eigen::MatrixXd &d)
 
 	d = newMat;
 }
-
-
-
-
-

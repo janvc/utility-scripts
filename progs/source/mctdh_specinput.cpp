@@ -162,6 +162,7 @@ int main(int argc, char *argv[])
 	 */
 	std::ofstream logFile("log");
 
+	logFile << "Electronic transition energy: " << dE << std::endl;
 	logFile << "Number of normal modes: " << Nmodes << std::endl;
 	logFile << "Ground state force constants:\n";
 	WriteVectorToFile(logFile, f1);
