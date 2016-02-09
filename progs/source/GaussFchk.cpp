@@ -41,7 +41,7 @@ int GaussFchk::ReadInteger(const std::string &searchString) const
 	while (std::getline(*m_FchkFile, currentLine))
 		if (currentLine.find(searchString) != std::string::npos && currentLine.at(43) == 'I' && currentLine.at(47) != 'N')
 		{
-			std::istringstream iss(currentLine.substr(50));
+			std::istringstream iss(currentLine.substr(49));
 			iss >> number;
 
 			return number;
@@ -60,7 +60,7 @@ double GaussFchk::ReadReal(const std::string &searchString) const
 	while (std::getline(*m_FchkFile, currentLine))
 		if (currentLine.find(searchString) != std::string::npos && currentLine.at(43) == 'R' && currentLine.at(47) != 'N')
 		{
-			std::istringstream iss(currentLine.substr(50));
+			std::istringstream iss(currentLine.substr(49));
 			iss >> number;
 
 			return number;
