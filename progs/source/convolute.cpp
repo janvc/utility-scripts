@@ -26,6 +26,7 @@
 #include <cmath>
 #include <iomanip>
 #include <sstream>
+#include <boost/program_options.hpp>
 
 /*
  * call this program like:
@@ -41,17 +42,46 @@
 int main(int argc, char *argv[])
 {
 	/*
-	 * check, if all arguments are present and read them
+	 * Define run parameters and process command options
 	 */
-	if (argc != 5)
+	std::string intFileName;
+	enum type
 	{
-		std::cerr << "ERROR: Wrong number of arguments.\n";
+		gaussian,
+		fcclasses
+	};
+	type specType;
+	char typeChar;
+	double gamma;
+	long nPoints;
+
+	namespace po = boost::program_options;
+	po::options_description desc("Allowed options");
+	desc.add_options()
+		("help,h", "produce this help message")
+		("type,t", po::value<char>(&typeChar)->required(), "format of the input file: g - Gaussian, f - FCClasses")
+		("input,f", po::value<std::string>(&intFileName)->required(), "the input file")
+		("width,w", po::value<double>(&gamma)->required(), "FWHM of the spectrum (eV for FCClasses, cm-1 for Gaussian")
+		("npoints,n", po::value<long>(&nPoints)->required(), "Number of points in the spectrum")
+	;
+	po::variables_map vm;
+	po::store(po::parse_command_line(argc, argv, desc), vm);
+	if (vm.count("help"))
+	{
+		std::cout << desc << std::endl;
 		return 1;
 	}
-	std::string typeFlag(argv[1]);
-	std::string intFileName(argv[2]);
-	double gamma = atof(argv[3]);
-	int nPoints = atoi(argv[4]);
+	po::notify(vm);
+	if (typeChar == 'f')
+		specType = fcclasses;
+	else if (typeChar == 'g')
+		specType = gaussian;
+	else
+	{
+		std::cerr << "Invalid value for spectrum type.\n\n";
+		std::cout << desc << std::endl;
+		return 1;
+	}
 
 	/*
 	 * Open the input file
@@ -70,7 +100,7 @@ int main(int argc, char *argv[])
 	std::vector<double> peakIntensities;
 	double tmpPos, tmpInt;
 
-	if (typeFlag == "-f")	// fcclasses type output files
+	if (specType == fcclasses)	// fcclasses type output files
 		while (intFile >> tmpPos >> tmpInt)
 			if (tmpInt != 0)
 			{
@@ -82,7 +112,7 @@ int main(int argc, char *argv[])
 				peakPositions.push_back(actualPosition);
 				peakIntensities.push_back(tmpInt);
 			}
-	if (typeFlag == "-g")	// gaussian type output files
+	if (specType == gaussian)	// gaussian type output files
 	{
 		int Natoms;
 		int Nmodes;
@@ -135,7 +165,7 @@ int main(int argc, char *argv[])
 	 * Print the stick spectrum to stdout
 	 */
 	std::cout << "# stick spectrum:\n";
-	if (typeFlag == "-f")
+	if (specType == fcclasses)
 		std::cout << "# energy [eV]  ";
 	else
 		std::cout << "# energy [cm-1]";

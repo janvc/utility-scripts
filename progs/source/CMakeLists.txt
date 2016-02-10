@@ -45,6 +45,7 @@ add_executable(mctdh_spec_fft  ${mctdh_spec_fft_SOURCES})
 add_executable(mctdh_specinput ${mctdh_specinput_SOURCES})
 add_executable(mkdusch         ${mkdusch_SOURCES})
 
+target_link_libraries(convolute ${Boost_LIBRARIES})
 target_link_libraries(gauss_viban_cpp ${Boost_LIBRARIES})
 target_link_libraries(mctdh_specinput ${Boost_LIBRARIES})
 target_link_libraries(mkdusch ${Boost_LIBRARIES})
