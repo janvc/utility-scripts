@@ -402,7 +402,13 @@ void createMCTDHfiles(const Eigen::MatrixXd &J, const Eigen::VectorXd &K, const 
 	 * The mlbasis-section
 	 */
 	// rearrange the modes in order of decreasing coupling
-	Eigen::MatrixXd phi_sort = phi.cwiseAbs();
+	Eigen::MatrixXd phi_sort = phi.cwiseAbs();	// use the absolute value of the coupling
+	for (int i = 0; i < Nmodes; i++)
+		for (int j = i + 1; j < Nmodes; j++)
+		{
+			phi_sort(i,j) /= double(f2(j) / f2(i));	// divide by the frequency ratio
+			phi_sort(j,i) = phi_sort(i,j);
+		}
 	std::vector<int> sortedModes;
 	while (phi_sort.norm() > 0.0)
 	{
@@ -447,7 +453,7 @@ void createMCTDHfiles(const Eigen::MatrixXd &J, const Eigen::VectorXd &K, const 
 	inputFile << "pbasis-section\n";
 	for (int i = 0; i < Nmodes; i++)
 		inputFile << "    q_" << std::setfill('0') << std::setw(3) << i + 1
-				  << "  ho  " << std::setw(3) << std::setfill(' ') << lrint(-0.75 * log(double(fp(i)))) + 2 << "  xi-xf  "
+				  << "  ho  " << std::setw(3) << std::setfill(' ') << lrint(-0.6 * log(double(fp(i)))) + 5 << "  xi-xf  "
 				  //
 				  // the basis boundarie are -kappa / fp +- 6.5 / fp**1/4
 				  //
