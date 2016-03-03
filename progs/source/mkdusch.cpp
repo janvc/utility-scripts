@@ -315,8 +315,8 @@ int main(int argc, char *argv[])
 	 */
 	Eigen::MatrixXd J = NMOe.transpose() * NMOg;
 	logFile << "Difference in equilibrium coordinates:\n";
-	WriteVectorToFile(logFile, QRg - Qe, digits, clean, threshold);
-	Eigen::VectorXd K = NMOe.transpose() * (QRg - Qe);
+	WriteVectorToFile(logFile, QSg - QSe, digits, clean, threshold);
+	Eigen::VectorXd K = NMOe.transpose() * (QSg - QSe);
 
 	logFile << "Duschinsky Matrix J:\n";
 	WriteMatrixToFile(logFile, J, digits, clean, threshold);
