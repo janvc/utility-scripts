@@ -67,6 +67,7 @@ syn keyword HamiltonianKeywords contained modes KE usediag
 syn region runSection matchgroup=mctdhSections start="RUN-SECTION" end="end-run-section" transparent contains=InputRunKeywords,mctdhNumber,mctdhFloat,mctdhComment
 syn region OpSection matchgroup=mctdhSections start="OPERATOR-SECTION" end="end-operator-section" transparent contains=InputOpKeywords,mctdhComment
 syn region sbasisSection matchgroup=mctdhSections start="sbasis-section" end="end-sbasis-section" transparent contains=mctdhNumber,mctdhFloat,mctdhComment,sbasisKeywords
+syn region sbasisSection matchgroup=mctdhSections start="mlbasis-section" end="end-mlbasis-section" transparent contains=mctdhNumber,mctdhFloat,mctdhComment,sbasisKeywords
 syn region pbasisSection matchgroup=mctdhSections start="pbasis-section" end="end-pbasis-section" transparent contains=mctdhNumber,mctdhFloat,mctdhComment,pbasisKeywords
 syn region IntegratorSection matchgroup=mctdhSections start="INTEGRATOR-SECTION" end="end-integrator-section" transparent contains=mctdhNumber,mctdhFloat,mctdhComment,IntegratorKeywords
 syn region InitWFSection matchgroup=mctdhSections start="INIT_WF-SECTION" end="end-init_wf-section" transparent contains=mctdhNumber,mctdhFloat,mctdhComment,InitWFKeywords
