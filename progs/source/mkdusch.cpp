@@ -27,6 +27,7 @@
 #include <eigen3/Eigen/Core>
 #include <eigen3/Eigen/SVD>
 #include <eigen3/Eigen/LU>
+#include <eigen3/Eigen/Eigenvalues>
 #include <boost/program_options.hpp>
 #include "GaussFchk.h"
 #include "utilities.h"
@@ -216,13 +217,8 @@ int main(int argc, char *argv[])
 	 * calculate the rotation matrix to minimize the RMSD between
 	 * the ground- and excited-state structures:
 	 */
-	double rmsd = 0;
-	for (int i = 0; i < Ncoords; i++)
-		rmsd += std::abs(double(Xg(i) - Xe(i))) * std::abs(double(Xg(i) - Xe(i)));
-	rmsd /= Natoms;
 
-	logFile << "original RMSD between ground and excited state: " << rmsd << std::endl;
-
+	// shift the molecules to their centers of mass:
 	Eigen::Vector3d COMg(calc_com(Xg, masses));
 	Eigen::Vector3d COMe(calc_com(Xe, masses));
 
@@ -259,6 +255,15 @@ int main(int argc, char *argv[])
 		logFile << std::setw(16) << std::scientific << std::setprecision(5) << double(COMg(i))
 				<< std::setw(16) << std::scientific << std::setprecision(5) << double(COMe(i)) << std::endl;
 
+	// calculate the original RMSD:
+	double RMSD_before = 0;
+	for (int i = 0; i < Ncoords; i++)
+		RMSD_before += std::abs(double(XSg(i) - XSe(i))) * std::abs(double(XSg(i) - XSe(i)));
+	RMSD_before /= Natoms;
+
+	logFile << "original RMSD between ground and excited state: " << RMSD_before << std::endl;
+
+	// calculate the cross-correlation matrix between the two structures:
 	Eigen::Matrix3d corr(Eigen::Matrix3d::Zero());
 	for (int i = 0; i < 3; i++)
 		for (int j = 0; j < 3; j++)
@@ -269,54 +274,102 @@ int main(int argc, char *argv[])
 	WriteMatrixToFile(logFile, corr, digits, clean, threshold);
 	logFile << "Determinant of the correlation matrix: " << corr.determinant() << std::endl;
 
-	Eigen::JacobiSVD<Eigen::Matrix3d> corrSVD(corr, Eigen::ComputeThinU | Eigen::ComputeThinV);
 
-	logFile << "singular values of the correlation matrix:\n";
-	WriteVectorToFile(logFile, corrSVD.singularValues(), digits, clean, threshold);
-	logFile << "the U matrix:\n";
-	WriteMatrixToFile(logFile, corrSVD.matrixU(), digits, clean, threshold);
-	logFile << "the V matrix:\n";
-	WriteMatrixToFile(logFile, corrSVD.matrixV(), digits, clean, threshold);
+	// calculate the quaternion matrix:
+	Eigen::Matrix4d F(Eigen::Matrix4d::Zero());
+	F(0,0) =  corr(0,0) + corr(1,1) + corr(2,2);
+	F(1,1) =  corr(0,0) - corr(1,1) - corr(2,2);
+	F(2,2) = -corr(0,0) + corr(1,1) - corr(2,2);
+	F(3,3) = -corr(0,0) - corr(1,1) + corr(2,2);
+	F(0,1) =  corr(1,2) - corr(2,1);
+	F(0,2) =  corr(2,0) - corr(0,2);
+	F(0,3) =  corr(0,1) - corr(1,0);
+	F(1,2) =  corr(0,1) + corr(1,0);
+	F(1,3) =  corr(0,2) + corr(2,0);
+	F(2,3) =  corr(1,2) + corr(2,1);
+	F(1,0) = F(0,1);
+	F(2,0) = F(0,2);
+	F(3,0) = F(0,3);
+	F(2,1) = F(1,2);
+	F(3,1) = F(1,3);
+	F(3,2) = F(2,3);
 
-	Eigen::Matrix3d rotmat(corrSVD.matrixV()
-						* Eigen::Vector3d(1, 1, corr.determinant() > 0 ? 1 : -1).asDiagonal()
-						* corrSVD.matrixU().transpose());
+	// diagonalize the quaternion matrix and select the best rotation quaternion:
+	// (the one corresponding to the largest absolute eigenvalue)
+	Eigen::SelfAdjointEigenSolver<Eigen::Matrix4d> Feig(F);
 
-	logFile << "the optimal rotation matrix:\n";
-	WriteMatrixToFile(logFile, rotmat, digits, clean, threshold);
+	Eigen::Vector4d lQuart = abs(double(Feig.eigenvalues()(0))) > abs(double(Feig.eigenvalues()(3)))
+							? Feig.eigenvectors().block(0, 0, 4, 1) : Feig.eigenvectors().block(0, 3, 4, 1);
+
+	Eigen::Matrix3d rotmat(Eigen::Matrix3d::Zero());
+
+	rotmat(0,0) = lQuart(0)*lQuart(0) + lQuart(1)*lQuart(1) - lQuart(2)*lQuart(2) - lQuart(3)*lQuart(3);
+	rotmat(0,1) = 2.0 * (lQuart(1)*lQuart(2) - lQuart(0)*lQuart(3));
+	rotmat(0,2) = 2.0 * (lQuart(1)*lQuart(3) + lQuart(0)*lQuart(2));
+	rotmat(1,0) = 2.0 * (lQuart(1)*lQuart(2) + lQuart(0)*lQuart(3));
+	rotmat(1,1) = lQuart(0)*lQuart(0) - lQuart(1)*lQuart(1) + lQuart(2)*lQuart(2) - lQuart(3)*lQuart(3);
+	rotmat(1,2) = 2.0 * (lQuart(2)*lQuart(3) - lQuart(0)*lQuart(1));
+	rotmat(2,0) = 2.0 * (lQuart(1)*lQuart(3) - lQuart(0)*lQuart(2));
+	rotmat(2,1) = 2.0 * (lQuart(2)*lQuart(3) + lQuart(0)*lQuart(1));
+	rotmat(2,2) = lQuart(0)*lQuart(0) - lQuart(1)*lQuart(1) - lQuart(2)*lQuart(2) + lQuart(3)*lQuart(3);
 
 	Eigen::MatrixXd BigRotMat(Eigen::MatrixXd::Zero(Ncoords, Ncoords));
-	for (int i = 0; i < Natoms; i++)
-		BigRotMat.block(3*i, 3*i, 3, 3) = rotmat;
+		for (int i = 0; i < Natoms; i++)
+			BigRotMat.block(3*i, 3*i, 3, 3) = rotmat;
 
-	logFile << "the big rotation matrix:\n";
+	logFile << "Quaternion matrix resulting from the correlation matrix:\n";
+	WriteMatrixToFile(logFile, F, digits, clean, threshold);
+	logFile << "Eigenvalues of the Quaternion matrix:\n";
+	WriteVectorToFile(logFile, Feig.eigenvalues(), digits, clean, threshold);
+	logFile << "Eigenvectors of the Quaternion matrix:\n";
+	WriteMatrixToFile(logFile, Feig.eigenvectors(), digits, clean, threshold);
+	logFile << "The best-rotation Eigen-Quaternion:\n";
+	WriteVectorToFile(logFile, lQuart, digits, clean, threshold);
+	logFile << "The optimal rotation matrix:\n";
+	WriteMatrixToFile(logFile, rotmat, digits, clean, threshold);
+	logFile << "The big rotation matrix:\n";
 	WriteMatrixToFile(logFile, BigRotMat, digits, clean, threshold);
 
+	// rotate the structures
 	Eigen::VectorXd XRg(BigRotMat * XSg);
 	Eigen::VectorXd QRg(BigRotMat * QSg);
 
-	rmsd = 0;
+	double RMSD_after = 0;
 	for (int i = 0; i < Ncoords; i++)
-		rmsd += std::abs(double(XRg(i) - Xe(i))) * std::abs(double(XRg(i) - Xe(i)));
-	rmsd /= Natoms;
+		RMSD_after += std::abs(double(XRg(i) - Xe(i))) * std::abs(double(XRg(i) - Xe(i)));
+	RMSD_after /= Natoms;
 
-	logFile << "new RMSD: " << rmsd << std::endl;
+	logFile << "new RMSD after Quaternion rotation: " << RMSD_after << std::endl;
 
-	Eigen::MatrixXd NMRg(BigRotMat * NMOg);
+	Eigen::MatrixXd J(Eigen::MatrixXd::Zero(Nmodes, Nmodes));
+	Eigen::VectorXd K(Eigen::VectorXd::Zero(Nmodes));
 
-	logFile << "the rotated ground state mass-weighted normal modes:\n";
-	WriteMatrixToFile(logFile, NMRg, digits, clean, threshold);
-	logFile << "and their metric:\n";
-	WriteMatrixToFile(logFile, NMRg.transpose() * NMRg, digits, clean, threshold);
+	// check if the rotation actually improved the alignment
+	// and calculate the Duschinsky matrix and the displacement vector:
+	if (RMSD_after < RMSD_before)
+	{
+		logFile << "The rotation has reduced the RMSD, so we will use the rotated structures\n";
 
+		Eigen::MatrixXd NMRg(BigRotMat * NMOg);
 
-	/*
-	 * Calculate Duschinsky matrix and Displacement Vector:
-	 */
-	Eigen::MatrixXd J = NMOe.transpose() * NMOg;
+		logFile << "the rotated ground state mass-weighted normal modes:\n";
+		WriteMatrixToFile(logFile, NMRg, digits, clean, threshold);
+		logFile << "and their metric:\n";
+		WriteMatrixToFile(logFile, NMRg.transpose() * NMRg, digits, clean, threshold);
+
+		J = NMOe.transpose() * NMRg;
+		K = NMOe.transpose() * (QRg - QSe);
+	}
+	else
+	{
+		logFile << "The rotation did not reduce the RMSD, so we will use the original structures\n";
+
+		J = NMOe.transpose() * NMOg;
+		K = NMOe.transpose() * (QSg - QSe);
+	}
+
 	logFile << "Difference in equilibrium coordinates:\n";
 	WriteVectorToFile(logFile, QSg - QSe, digits, clean, threshold);
-	Eigen::VectorXd K = NMOe.transpose() * (QSg - QSe);
 
 	logFile << "Duschinsky Matrix J:\n";
 	WriteMatrixToFile(logFile, J, digits, clean, threshold);
