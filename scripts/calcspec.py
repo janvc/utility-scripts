@@ -23,7 +23,7 @@ import os
 import sys
 import subprocess
 
-mctdhExe = "/home/jan/mctdh85.4/bin/binary/x86_64/mctdh85"
+mctdhExe = "/home/jvcosel/mctdh85.4/bin/binary/x86_64/mctdh85"
 
 initInputName = sys.argv[1]
 natPopThres = float(sys.argv[2])
