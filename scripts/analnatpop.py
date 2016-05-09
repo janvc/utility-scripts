@@ -19,7 +19,12 @@
 #
 #
 
+import sys
+
 popFileName = "lownatpop"
+doSort = ""
+if len(sys.argv) == 2:
+    doSort = sys.argv[1]
 
 popList = []
 
@@ -49,7 +54,11 @@ for i in range(len(popList)):
     tmpList.append(float(popList[i]))
     outputList.append(tmpList)
 
-sortedList = sorted(outputList, key=lambda l:l[3], reverse=True)
+# do not sort if '-s' is given:
+if "-s" in doSort:
+    sortedList = outputList
+else:
+    sortedList = sorted(outputList, key=lambda l:l[3], reverse=True)
 
 for i in range(len(sortedList)):
     print("{0:10s} {1:10s} {2:10s} {3:5.5f}".format(sortedList[i][0], sortedList[i][1], sortedList[i][2], sortedList[i][3]))
