@@ -109,8 +109,8 @@ int main(int argc, char *argv[])
 	 */
 	Eigen::VectorXd v1(Nmodes);
 	Eigen::VectorXd v2(Nmodes);
-	Eigen::VectorXd K(Nmodes);
-	Eigen::MatrixXd J(Nmodes, Nmodes);
+	Eigen::VectorXd Korig(Nmodes), K(Nmodes);
+	Eigen::MatrixXd Jorig(Nmodes, Nmodes), J(Nmodes, Nmodes);
 	for (int i = 0; i < 2; i++)
 		shift.ignore(std::numeric_limits<std::streamsize>::max(), '\n');		// skip the first two lines in the K file
 	for (int i = 0; i < 5; i++)
@@ -120,10 +120,17 @@ int main(int argc, char *argv[])
 		int dummyIndex, dummyIndex2;
 		gsfc >> v1(i);
 		esfc >> v2(i);
-		shift >> dummyIndex >> K(i);
+		shift >> dummyIndex >> Korig(i);
 		for (int j = 0; j < Nmodes; j++)
-			dusch >> dummyIndex >> dummyIndex2 >> J(j,i);
+			dusch >> dummyIndex >> dummyIndex2 >> Jorig(j,i);
 	}
+
+
+	/*
+	 * Calculate our J/K quantities from the FCClasses ones.
+	 */
+	J = Jorig.transpose();
+	K = -Jorig.transpose() * Korig;
 
 
 	/*
@@ -170,6 +177,10 @@ int main(int argc, char *argv[])
 	WriteVectorToFile(logFile, f2);
 	logFile << "Ground state zero-point Energy: " << zpe1 << "Eh\n";
 	logFile << "Excited state zero-point Energy: " << zpe2 << "Eh\n";
+	logFile << "Original Displacement Vector from FCClasses:\n";
+	WriteVectorToFile(logFile, Korig);
+	logFile << "Original Duschinsky Matrix from FCClasses:\n";
+	WriteMatrixToFile(logFile, Jorig);
 	logFile << "Displacement Vector:\n";
 	WriteVectorToFile(logFile, K);
 	logFile << "Duschinsky Matrix:\n";
