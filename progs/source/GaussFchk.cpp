@@ -96,6 +96,33 @@ Eigen::VectorXd GaussFchk::ReadVector(const std::string &searchString) const
 	return Eigen::VectorXd();
 }
 
+Eigen::VectorXi GaussFchk::ReadIVector(const std::string &searchString) const
+{
+	m_FchkFile->clear();
+	m_FchkFile->seekg(0);
+
+	std::string currentLine;
+	int vecSize;
+	while (std::getline(*m_FchkFile, currentLine))
+	{
+		if (currentLine.find(searchString) != std::string::npos)
+		{
+			std::istringstream iss(currentLine.substr(50));
+			iss >> vecSize;
+			int remainder = vecSize % 5;
+
+			Eigen::VectorXi Vec(vecSize);
+			for (int i = 0; i < vecSize - remainder; i += 5)
+				*m_FchkFile >> Vec(i) >> Vec(i+1) >> Vec(i+2) >> Vec(i+3) >> Vec(i+4);
+			for (int i = vecSize - remainder; i < vecSize; i++)
+				*m_FchkFile >> Vec(i);
+
+			return Vec;
+		}
+	}
+	return Eigen::VectorXi();
+}
+
 Eigen::MatrixXd GaussFchk::ReadMatrix(const std::string &searchString, const int columns, const int rows) const
 {
 	m_FchkFile->clear();
