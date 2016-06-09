@@ -31,4 +31,6 @@ const double hbar = 1.054571596e-34;
 const double amu2au = 1822.88848325;
 const double Eh2eV = 27.21138344;
 
+const double ang2a0 = 1.0e10 * a0;
+
 #endif /* CONSTANTS_H_ */

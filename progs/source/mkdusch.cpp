@@ -29,9 +29,11 @@
 #include <eigen3/Eigen/LU>
 #include <eigen3/Eigen/Eigenvalues>
 #include <boost/program_options.hpp>
+#include <boost/filesystem.hpp>
 #include "GaussFchk.h"
 #include "utilities.h"
 #include "constants.h"
+#include "vibrationalanalysis.h"
 
 
 int main(int argc, char *argv[])
@@ -79,27 +81,8 @@ int main(int argc, char *argv[])
 	double Ee = ES_fchk.ReadReal("Total Energy");
 	double deltaE = Ee - Eg;
 
-	Eigen::VectorXd masses = GS_fchk.ReadVector("Real atomic weights") * amu2au;
-	Eigen::VectorXd Xg = GS_fchk.ReadVector("Current cartesian coordinates");
-	Eigen::VectorXd Xe = ES_fchk.ReadVector("Current cartesian coordinates");
-	Eigen::MatrixXd Hg = GS_fchk.ReadSymmetricMatrix("Cartesian Force Constants");
-	Eigen::MatrixXd He = ES_fchk.ReadSymmetricMatrix("Cartesian Force Constants");
-
-
-	/*
-	 * Create mass-weighted coordinates:
-	 */
-	Eigen::VectorXd Qg(Ncoords);
-	Eigen::VectorXd Qe(Ncoords);
-	for (int i = 0; i < Natoms; i++)
-	{
-		Qg(3 * i + 0) = Xg(3 * i + 0) * sqrt(double(masses(i)));
-		Qe(3 * i + 0) = Xe(3 * i + 0) * sqrt(double(masses(i)));
-		Qg(3 * i + 1) = Xg(3 * i + 1) * sqrt(double(masses(i)));
-		Qe(3 * i + 1) = Xe(3 * i + 1) * sqrt(double(masses(i)));
-		Qg(3 * i + 2) = Xg(3 * i + 2) * sqrt(double(masses(i)));
-		Qe(3 * i + 2) = Xe(3 * i + 2) * sqrt(double(masses(i)));
-	}
+	VibrationalAnalysis GState(GS_fchk);
+	VibrationalAnalysis EState(ES_fchk);
 
 
 	/*
@@ -119,80 +102,53 @@ int main(int argc, char *argv[])
 	logFile << "Ground and excited state cartesian coordinates in [bohr]:\n";
 	for (int i = 0; i < Ncoords; i++)
 		logFile << std::setw(5) << i + 1
-				<< std::setw(17) << std::fixed << double(Xg(i))
-				<< std::setw(17) << double(Xe(i)) << std::endl;
+				<< std::setw(17) << std::fixed << double(GState.X()(i))
+				<< std::setw(17) << double(EState.X()(i)) << std::endl;
 
 	logFile << "Ground and excited state mass-weighted coordinates in [bohr * sqrt(me)]:\n";
 	for (int i = 0; i < Ncoords; i++)
 		logFile << std::setw(5) << i + 1
-				<< std::setw(17) << std::fixed << double(Qg(i))
-				<< std::setw(17) << double(Qe(i)) << std::endl;
+				<< std::setw(17) << std::fixed << double(GState.Q()(i))
+				<< std::setw(17) << double(EState.Q()(i)) << std::endl;
 	logFile << std::endl;
 
 	logFile << "Ground state cartesian Hessian in [Eh / bohr**2]:\n";
-	WriteMatrixToFile(logFile, Hg, digits, clean, threshold);
+	WriteMatrixToFile(logFile, GState.Fcart(), digits, clean, threshold);
 	logFile << "Excited state cartesian Hessian in [Eh / bohr**2]:\n";
-	WriteMatrixToFile(logFile, He, digits, clean, threshold);
+	WriteMatrixToFile(logFile, EState.Fcart(), digits, clean, threshold);
 
-
-	/*
-	 * Perform vibrational analysis:
-	 */
-	Eigen::MatrixXd vibAn_g = vibrationalAnalysis(Xg, masses, Hg);
-	Eigen::MatrixXd vibAn_e = vibrationalAnalysis(Xe, masses, He);
-	Eigen::VectorXd FCg = vibAn_g.row(0);
-	Eigen::VectorXd FCe = vibAn_e.row(0);
-	Eigen::MatrixXd NMg = vibAn_g.block(1, 0, Ncoords, Nmodes);
-	Eigen::MatrixXd NMe = vibAn_e.block(1, 0, Ncoords, Nmodes);
-
-	Eigen::VectorXd freq_g(Nmodes);
-	Eigen::VectorXd freq_e(Nmodes);
-	for (int i = 0; i < Nmodes; i++)
-	{
-		double value_g = FCg(i);
-		double value_e = FCe(i);
-		double wavenumber_g, wavenumber_e;
-		if (value_g > 0)
-			wavenumber_g = sqrt(value_g * Eh / (a0 * a0 * me)) / (2.0 * M_PI * c0 * 100.0);
-		else
-			wavenumber_g = -sqrt(-value_g * Eh / (a0 * a0 * me)) / (2.0 * M_PI * c0 * 100.0);
-		if (value_e > 0)
-			wavenumber_e = sqrt(value_e * Eh / (a0 * a0 * me)) / (2.0 * M_PI * c0 * 100.0);
-		else
-			wavenumber_e = -sqrt(-value_e * Eh / (a0 * a0 * me)) / (2.0 * M_PI * c0 * 100.0);
-		freq_g(i) = wavenumber_g;
-		freq_e(i) = wavenumber_e;
-	}
 
 	logFile << std::endl;
 	logFile << "Ground state mass-weighted force constants in [Eh / a0**2 * me]" << std::endl
 			<< "and frequencies in [cm**-1]:\n";
 	for (int i = 0; i < Nmodes; i++)
 		logFile << std::setw(5) << i + 1
-				<< std::setw(20) << std::scientific << std::setprecision(9) << double(FCg(i))
-				<< std::setw(13) << std::fixed << std::setprecision(4) << double(freq_g(i)) << std::endl;
+				<< std::setw(20) << std::scientific << std::setprecision(9) << double(GState.intFC()(i))
+				<< std::setw(13) << std::fixed << std::setprecision(4) << double(GState.intFrq()(i)) << std::endl;
 	logFile << "Excited state mass-weighted force constants in [Eh / a0**2 * me]" << std::endl
 			<< "and frequencies in [cm**-1]:\n";
 	for (int i = 0; i < Nmodes; i++)
 		logFile << std::setw(5) << i + 1
-				<< std::setw(20) << std::scientific << std::setprecision(9) << double(FCe(i))
-				<< std::setw(13) << std::fixed << std::setprecision(4) << double(freq_e(i)) << std::endl;
+				<< std::setw(20) << std::scientific << std::setprecision(9) << double(EState.intFC()(i))
+				<< std::setw(13) << std::fixed << std::setprecision(4) << double(EState.intFrq()(i)) << std::endl;
 
 	logFile << std::endl;
 	logFile << "Ground state mass-weighted normal modes in [a0 * sqrt(me)]:\n";
-	WriteMatrixToFile(logFile, NMg, digits, clean, threshold);
+	WriteMatrixToFile(logFile, GState.Lmwc(), digits, clean, threshold);
 	logFile << "Excited state mass-weighted normal modes in [a0 * sqrt(me)]:\n";
-	WriteMatrixToFile(logFile, NMe, digits, clean, threshold);
+	WriteMatrixToFile(logFile, EState.Lmwc(), digits, clean, threshold);
 	logFile << "Metric of the mass-weighted ground state normal modes:\n";
-	WriteMatrixToFile(logFile, NMg.transpose() * NMg, digits, clean, threshold);
+	WriteMatrixToFile(logFile, GState.Lmwc().transpose() * GState.Lmwc(), digits, clean, threshold);
 	logFile << "Metric of the mass-weighted excited state normal modes:\n";
-	WriteMatrixToFile(logFile, NMe.transpose() * NMe, digits, clean, threshold);
+	WriteMatrixToFile(logFile, EState.Lmwc().transpose() * EState.Lmwc(), digits, clean, threshold);
 	logFile << std::endl;
 
 
 	/*
 	 * Perform SVD on the normal modes:
 	 */
+	Eigen::MatrixXd NMg = GState.Lmwc();
+	Eigen::MatrixXd NMe = EState.Lmwc();
 	Eigen::JacobiSVD<Eigen::MatrixXd> SVDg(NMg, Eigen::ComputeThinU | Eigen::ComputeThinV);
 	Eigen::JacobiSVD<Eigen::MatrixXd> SVDe(NMe, Eigen::ComputeThinU | Eigen::ComputeThinV);
 	Eigen::MatrixXd NMOg = SVDg.matrixU() * SVDg.matrixV().transpose();
@@ -219,8 +175,8 @@ int main(int argc, char *argv[])
 	 */
 
 	// shift the molecules to their centers of mass:
-	Eigen::Vector3d COMg(calc_com(Xg, masses));
-	Eigen::Vector3d COMe(calc_com(Xe, masses));
+	Eigen::Vector3d COMg = GState.com();
+	Eigen::Vector3d COMe = EState.com();
 
 	logFile << "Center of mass of the ground and excited state:\n";
 	for (int i = 0; i < 3; i++)
@@ -232,11 +188,12 @@ int main(int argc, char *argv[])
 	for (int i = 0; i < Natoms; i++)
 		for (int j = 0; j < 3; j++)
 		{
-			XSg(3*i+j) = Xg(3*i+j) - COMg(j);
-			XSe(3*i+j) = Xe(3*i+j) - COMe(j);
+			XSg(3*i+j) = GState.X()(3*i+j) - COMg(j);
+			XSe(3*i+j) = EState.X()(3*i+j) - COMe(j);
 		}
 	Eigen::VectorXd QSg(Ncoords);
 	Eigen::VectorXd QSe(Ncoords);
+	Eigen::VectorXd masses = GState.masses();
 	for (int i = 0; i < Natoms; i++)
 	{
 		QSg(3 * i + 0) = XSg(3 * i + 0) * sqrt(double(masses(i)));
@@ -336,7 +293,7 @@ int main(int argc, char *argv[])
 
 	double RMSD_after = 0;
 	for (int i = 0; i < Ncoords; i++)
-		RMSD_after += std::abs(double(XRg(i) - Xe(i))) * std::abs(double(XRg(i) - Xe(i)));
+		RMSD_after += std::abs(double(XRg(i) - XSe(i))) * std::abs(double(XRg(i) - XSe(i)));
 	RMSD_after /= Natoms;
 
 	logFile << "new RMSD after Quaternion rotation: " << RMSD_after << std::endl;
@@ -384,7 +341,266 @@ int main(int argc, char *argv[])
 	/*
 	 * Write MCTDH files:
 	 */
-	createMCTDHfiles(J, K, FCg, FCe, deltaE, logFile);
+	Eigen::VectorXd f1 = GState.intFC();
+	Eigen::VectorXd f2 = EState.intFC();
+
+	// calculate the new force constants:
+	Eigen::VectorXd fp = Eigen::VectorXd::Zero(Nmodes);
+	for (int m = 0; m < Nmodes; m++)
+		for (int n = 0; n < Nmodes; n++)
+			fp(m) += f2(n) * J(n,m) * J(n,m);
+
+	// calculate the first-order coefficients:
+	Eigen::VectorXd kappa = Eigen::VectorXd::Zero(Nmodes);
+	for (int m = 0; m < Nmodes; m++)
+		for (int n = 0; n < Nmodes; n++)
+			kappa(m) += f2(n) * K(n) * J(n,m);
+
+	// calculate the couplings:
+	Eigen::MatrixXd phi(Eigen::MatrixXd::Zero(Nmodes,Nmodes));
+	Eigen::MatrixXd phiFull(Eigen::MatrixXd::Zero(Nmodes,Nmodes));
+	for (int m = 0; m < Nmodes; m++)
+	{
+		for (int o = m + 1; o < Nmodes; o++)
+		{
+			for (int n = 0; n < Nmodes; n++)
+				phi(m,o) += f2(n) * J(n,m) * J(n,o);
+			phi(o,m) = phi(m,o);
+			phiFull(m,o) = phi(m,o);
+			phiFull(o,m) = phi(m,o);
+		}
+		phiFull(m,m) = fp(m);
+	}
+
+	// calculate the energy shifts:
+	Eigen::VectorXd d(Nmodes);
+	for (int i = 0; i < Nmodes; i++)
+		d(i) = 0.5 * f2(i) * K(i) * K(i);
+
+	logFile << "Coupling matrix phi with the force constants fp on the diagonal:\n";
+	WriteMatrixToFile(logFile, phiFull, 3, true);
+
+
+	/*
+	 * Start writing the MCTDH input files:
+	 */
+	std::cout << "Enter the base-name for the MCTDH files to be generated.\nThe files <name>.inp and <name>.op will then be written.\n>>> ";
+	std::string basename;
+	std::cin >> basename;
+	std::string inputFileName = basename + ".inp";
+	std::string operatorFileName = basename + ".op";
+
+	if (boost::filesystem::exists(inputFileName) || boost::filesystem::exists(operatorFileName))
+	{
+		std::cout << "One of the MCTDH files already exists. Should they be overwritten? (Y/N)\n>>> ";
+		char answer;
+		std::cin >> answer;
+		if (answer == 'N' || answer == 'n')
+			return 1;
+	}
+	std::ofstream inputFile(inputFileName);
+	std::ofstream operatorFile(operatorFileName);
+
+	inputFile.precision(1);
+	operatorFile.precision(8);
+
+
+	/*
+	 * The run-section
+	 */
+	inputFile << "run-section\n";
+	inputFile << "    name =\n";
+	inputFile << "    propagation\n";
+	inputFile << "    tfinal =\n";
+	inputFile << "    tout =\n";
+	inputFile << "    tpsi =\n";
+	inputFile << "    psi gridpop auto steps graphviz\n";
+	inputFile << "end-run-section\n\n";
+
+	/*
+	 * The operator-section
+	 */
+	inputFile << "operator-section\n";
+	inputFile << "    opname = " << basename << std::endl;
+	inputFile << "end-operator-section\n\n";
+
+	/*
+	 * The mlbasis-section
+	 */
+	inputFile << "mlbasis-section\n";
+	for (int i = 0; i < Nmodes - 1; i += 2)
+	{
+		if (Nmodes - i == 3)
+			inputFile << "    [q_" << std::setfill('0') << std::setw(3) << i + 1
+				          << " q_" << std::setfill('0') << std::setw(3) << i+1 + 1
+						  << " q_" << std::setfill('0') << std::setw(3) << i+2 + 1 << "]\n";
+		else
+			inputFile << "    [q_" << std::setfill('0') << std::setw(3) << i+0 + 1
+						  << " q_" << std::setfill('0') << std::setw(3) << i+1 + 1 << "]\n";
+	}
+	inputFile << "end-mlbasis-section\n\n";
+
+	/*
+	 * The pbasis-section
+	 */
+	inputFile << "pbasis-section\n";
+	for (int i = 0; i < Nmodes; i++)
+	{
+		// determine the number of SPFs:
+		int numSPFs = lrint(-0.7 * log(double(fp(i)))) + 6;
+
+		// determine the lower and upper bounds of the grid:
+		// the basis boundarie are (originally) -kappa / fp +- 6.5 / fp**1/4
+		double lowBound = -double(kappa(i) / fp(i)) - (std::abs(double(kappa(i) / fp(i))) + 7.5 / (sqrt(2.0) * pow(double(fp(i)), 0.25)));
+		double uppBound = -double(kappa(i) / fp(i)) + (std::abs(double(kappa(i) / fp(i))) + 7.5 / (sqrt(2.0) * pow(double(fp(i)), 0.25)));
+
+		inputFile << "    q_" << std::setfill('0') << std::setw(3) << i + 1
+				  << "  ho  " << std::setw(3) << std::setfill(' ') << numSPFs << "  xi-xf  "
+				  << std::fixed << std::setfill(' ') << std::setw(8)
+				  << lowBound
+				  << std::fixed << std::setfill(' ') << std::setw(8)
+				  << uppBound << std::endl;
+	}
+	inputFile << "end-pbasis-section\n\n";
+
+	/*
+	 * The integrator section
+	 */
+	inputFile << "integrator-section\n";
+	inputFile << "    vmf\n";
+	inputFile << "    abm = 6, 1.0d-7, 0.01d0\n";
+	inputFile << "end-integrator-section\n\n";
+
+	/*
+	 * The init wf section
+	 */
+	inputFile << "init_wf-section\n";
+	inputFile << "    build\n";
+	for (int i = 0; i < Nmodes; i++)
+		inputFile << "        q_" << std::setfill('0') << std::setw(3) << i + 1
+				  << "  eigenf"
+				  << "  Eq_" << std::setfill('0') << std::setw(3) << i + 1
+				  << "  pop = 1\n";
+	inputFile << "    end-build\n";
+	inputFile << "end-init_wf-section\n\n";
+	inputFile << "end-input\n\n";
+
+
+	/*
+	 * Now the operator file
+	 *
+	 * First the op-define section
+	 */
+	operatorFile << "op_define-section\n";
+	operatorFile << "    title\n";
+	operatorFile << "        " << basename << std::endl;
+	operatorFile << "    end-title\n";
+	operatorFile << "end-op_define-section\n\n";
+
+	/*
+	 * The parameter section
+	 */
+	operatorFile << "parameter-section\n";
+	// the masses
+	for (int i = 0; i < Nmodes; i++)
+		operatorFile << "    mass_q_" << std::setfill('0') << std::setw(3) << i + 1
+					 << "  =  1.0\n";
+	// the ground state force constants
+	for (int i = 0; i < Nmodes; i++)
+	{
+		operatorFile << "    f1_" << std::setfill('0') << std::setw(3) << i + 1 << "      = ";
+		WriteFortranNumber(operatorFile, double(f1(i)));
+		operatorFile << std::endl;
+	}
+	// the excited state force constants
+	for (int i = 0; i < Nmodes; i++)
+	{
+		operatorFile << "    f2_" << std::setfill('0') << std::setw(3) << i + 1 << "      = ";
+		WriteFortranNumber(operatorFile, double(f2(i)));
+		operatorFile << std::endl;
+	}
+	// the new effective excited state force constants
+	for (int i = 0; i < Nmodes; i++)
+	{
+		operatorFile << "    fp_" << std::setfill('0') << std::setw(3) << i + 1 << "      = ";
+		WriteFortranNumber(operatorFile, double(fp(i)));
+		operatorFile << std::endl;
+	}
+	// the couplings
+	for (int i = 0; i < Nmodes; i++)
+		for (int j = i + 1; j < Nmodes; j++)
+		{
+			operatorFile << "    phi_" << std::setfill('0') << std::setw(3) << i + 1
+						 << "_" << std::setfill('0') << std::setw(3) << j + 1 << " = ";
+			WriteFortranNumber(operatorFile, double(phi(i,j)));
+			operatorFile << std::endl;
+		}
+	// the first-order coefficients (shifts)
+	for (int i = 0; i < Nmodes; i++)
+	{
+		operatorFile << "    kappa_" << std::setfill('0') << std::setw(3) << i + 1 << "   = ";
+		WriteFortranNumber(operatorFile, double(kappa(i)));
+		operatorFile << std::endl;
+	}
+	// the energy offsets
+	for (int i = 0; i < Nmodes; i++)
+	{
+		operatorFile << "    d_" << std::setfill('0') << std::setw(3) << i + 1 << "       = ";
+		WriteFortranNumber(operatorFile, double(d(i)));
+		operatorFile << std::endl;
+	}
+	// the electronic offset minus the ground state ZPE
+	double zpe1 = 0.0;
+	for (int i = 0; i < Nmodes; i++)
+		zpe1 += 0.5 * sqrt(double(f1(i)));
+	operatorFile << "    dE          = ";
+	WriteFortranNumber(operatorFile, deltaE - zpe1);
+	operatorFile << "\nend-parameter-section\n\n";
+
+	/*
+	 * The hamiltonian section
+	 */
+	operatorFile << "hamiltonian-section";
+	for (int i = 0; i < Nmodes; i++)
+	{
+		if (i % 8 == 0)
+			operatorFile << std::endl << "modes";
+		operatorFile << " | q_" << std::setfill('0') << std::setw(3) << i + 1;
+	}
+	operatorFile << std::endl;
+	for (int i = 0; i < Nmodes; i++)
+		operatorFile << "1.0         |" << i + 1 << " KE\n";
+	for (int i = 0; i < Nmodes; i++)
+		operatorFile << "0.5*fp_" << std::setfill('0') << std::setw(3) << i + 1
+					 << "  |" << i + 1 << " q^2\n";
+	for (int i = 0; i < Nmodes; i++)
+		for (int j = i + 1; j < Nmodes; j++)
+			operatorFile << "phi_" << std::setfill('0') << std::setw(3) << i + 1
+						 << "_" << std::setfill('0') << std::setw(3) << j + 1
+						 << " |" << i + 1 << " q"
+						 << " |" << j + 1 << " q\n";
+	for (int i = 0; i < Nmodes; i++)
+		operatorFile << "kappa_" << std::setfill('0') << std::setw(3) << i + 1
+					 << "   |" << i + 1 << " q\n";
+	for (int i = 0; i < Nmodes; i++)
+			operatorFile << "d_" << std::setfill('0') << std::setw(3) << i + 1
+						 << "       |" << i + 1 << " 1\n";
+	operatorFile << "dE          |1 1\n";
+	operatorFile << "end-hamiltonian-section\n\n";
+
+	/*
+	 * One-dimensional Hamiltonians for the ground state normal modes
+	 */
+	for (int i = 0; i < Nmodes; i++)
+	{
+		operatorFile << "hamiltonian-section_Eq_" << std::setfill('0') << std::setw(3) << i + 1 << std::endl;
+		operatorFile << "usediag\n";
+		operatorFile << "modes      | q_" << std::setfill('0') << std::setw(3) << i + 1 << std::endl;
+		operatorFile << "1.0        |1 KE\n";
+		operatorFile << "0.5*f1_" << std::setfill('0') << std::setw(3) << i + 1 << " |1 q^2\n";
+		operatorFile << "end-hamiltonian-section\n\n";
+	}
+	operatorFile << "end-operator\n";
 
 	return 0;
 }

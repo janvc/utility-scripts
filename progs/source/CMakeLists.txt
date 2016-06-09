@@ -9,6 +9,7 @@ set(gauss_viban_cpp_SOURCES
     gauss_viban.cpp
     GaussFchk.cpp
     utilities.cpp
+    vibrationalanalysis.cpp
 )
 
 set(gauss_viban_f_SOURCES
@@ -28,7 +29,28 @@ set(mctdh_specinput_SOURCES
 set(mkdusch_SOURCES
 	mkdusch.cpp
 	GaussFchk.cpp
+    vibrationalanalysis.cpp
 	utilities.cpp
+)
+
+set(test_cubic_SOURCES
+    test_cubic.cpp
+    GaussFchk.cpp
+    utilities.cpp
+)
+
+set(anharmgaussjob_SOURCES
+    anharmgaussjob.cpp
+    GaussFchk.cpp
+    utilities.cpp
+    vibrationalanalysis.cpp
+)
+
+set(gva2_SOURCES
+    gva2.cpp
+    vibrationalanalysis.cpp
+    GaussFchk.cpp
+    utilities.cpp
 )
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -Wextra")
@@ -44,12 +66,18 @@ add_executable(gauss_viban_f   ${gauss_viban_f_SOURCES})
 add_executable(mctdh_spec_fft  ${mctdh_spec_fft_SOURCES})
 add_executable(mctdh_specinput ${mctdh_specinput_SOURCES})
 add_executable(mkdusch         ${mkdusch_SOURCES})
+add_executable(test_cubic      ${test_cubic_SOURCES})
+add_executable(anharmgaussjob  ${anharmgaussjob_SOURCES})
+add_executable(gva2            ${gva2_SOURCES})
 
+target_link_libraries(anharmgaussjob ${Boost_LIBRARIES})
 target_link_libraries(convolute ${Boost_LIBRARIES})
 target_link_libraries(gauss_viban_cpp ${Boost_LIBRARIES})
 target_link_libraries(mctdh_specinput ${Boost_LIBRARIES})
 target_link_libraries(mkdusch ${Boost_LIBRARIES})
+target_link_libraries(test_cubic ${Boost_LIBRARIES})
 target_link_libraries(gauss_viban_f ${Lapack_LIBRARIES})
+target_link_libraries(gva2 ${Boost_LIBRARIES})
 
 install(TARGETS convolute DESTINATION bin)
 install(TARGETS gauss_viban_cpp DESTINATION bin)
@@ -57,3 +85,6 @@ install(TARGETS gauss_viban_f DESTINATION bin)
 install(TARGETS mctdh_spec_fft DESTINATION bin)
 install(TARGETS mctdh_specinput DESTINATION bin)
 install(TARGETS mkdusch DESTINATION bin)
+install(TARGETS test_cubic DESTINATION bin)
+install(TARGETS gva2 DESTINATION bin)
+install(TARGETS anharmgaussjob DESTINATION bin)
