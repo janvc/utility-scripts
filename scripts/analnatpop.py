@@ -27,6 +27,7 @@ if len(sys.argv) == 2:
     doSort = sys.argv[1]
 
 popList = []
+timeList = []
 
 with open(popFileName) as popFile:
     for line in popFile:
@@ -36,6 +37,7 @@ with open(popFileName) as popFile:
                 if "layer" in line:
                     layerList = line.split()
                     popList = [0]*(len(layerList)-2)
+                    timeList = [0]*len(popList)
                 elif "node" in line:
                     nodeList = line.split()
                 elif "mode" in line:
@@ -44,6 +46,7 @@ with open(popFileName) as popFile:
             for i in range(len(popList)):
                 if float(line.split()[i+1]) > float(popList[i]):
                     popList[i] = line.split()[i+1]
+                    timeList[i] = line.split()[0]
 
 outputList = []
 for i in range(len(popList)):
@@ -52,6 +55,7 @@ for i in range(len(popList)):
     tmpList.append(nodeList[i+1])
     tmpList.append(modeList[i+1])
     tmpList.append(float(popList[i]))
+    tmpList.append(float(timeList[i]))
     outputList.append(tmpList)
 
 # do not sort if '-s' is given:
@@ -61,6 +65,6 @@ else:
     sortedList = sorted(outputList, key=lambda l:l[3], reverse=True)
 
 for i in range(len(sortedList)):
-    print("{0:10s} {1:10s} {2:10s} {3:5.5f}".format(sortedList[i][0], sortedList[i][1], sortedList[i][2], sortedList[i][3]))
+    print("{0:10s} {1:10s} {2:10s} {3:5.5f}   @ {4:9.2f} fs".format(sortedList[i][0], sortedList[i][1], sortedList[i][2], sortedList[i][3], sortedList[i][4]))
 
 
