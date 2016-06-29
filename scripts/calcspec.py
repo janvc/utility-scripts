@@ -83,7 +83,7 @@ if __name__ == '__main__':
     initInputData = initInputFile.readlines()
     initInputFile.close()
 
-    currentNameDir = initBaseName + "_01"
+    currentNameDir = initBaseName + "_001"
     currentInputName = currentNameDir + ".inp"
 
     currentInputData = initInputData
@@ -115,6 +115,9 @@ if __name__ == '__main__':
         mctdhCommand = [mctdhExe, "-mnd", currentInputName]
 
         MCTDHproc = subprocess.Popen(mctdhCommand)
+
+        # wait for five minutes to avoid timing issues:
+        time.sleep(300)
 
         # while the calculation is running,
         # check periodically, if we have violated the convergence criterion:
@@ -157,9 +160,9 @@ if __name__ == '__main__':
                     currSPFs = int(currLn[currSPFId])
                     newInputData[currLNr] = currLn[:currSPFId - 1] + " " + str(currSPFs + 1) + currLn[currSPFId + 1:]
 
-            currentNumber = int(currentNameDir[-2:])
+            currentNumber = int(currentNameDir[-3:])
             newNumber = currentNumber + 1
-            newNameDir = initBaseName + "_" + str(newNumber).zfill(2)
+            newNameDir = initBaseName + "_" + str(newNumber).zfill(3)
             newInputName = newNameDir + ".inp"
             newInputFile = open(newInputName, "w")
             for item in newInputData:
