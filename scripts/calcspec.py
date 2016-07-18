@@ -70,6 +70,17 @@ def analNatPop(nameDir):
 
     return sortedList
 
+def getCurrentTime(nameDir):
+    speedFileName = nameDir + "/speed"
+
+    currentTime = 0.0
+    with open(speedFileName) as speedFile:
+        speedList = speedFile.readlines()
+        if not "#" in speedList[-1]:
+            currentTime = float(speedList[-1].split()[0])
+
+    return currentTime
+
 
 #
 # here begins the main function
@@ -103,6 +114,12 @@ if __name__ == '__main__':
             mlStart = i
             break
 
+    # determine the length of the propagation:
+    tfinal = 0.0
+    for i in range(len(initInputData)):
+        if ("tfinal" in initInputData[i]):
+            tfinal = float(initInputData[i].split()[2])
+
 
 
     #
@@ -112,6 +129,7 @@ if __name__ == '__main__':
     while True:
 
         # run the calculation:
+        print "Starting calculation ", + str(currentNameDir)
         mctdhCommand = [mctdhExe, "-mnd", currentInputName]
 
         MCTDHproc = subprocess.Popen(mctdhCommand)
@@ -123,11 +141,11 @@ if __name__ == '__main__':
         # check periodically, if we have violated the convergence criterion:
         while True:
 
-            # wait for one minute:
-            time.sleep(60)
-
             # analyze the natural populations:
             currentPopList = analNatPop(currentNameDir)
+            currentTime = getCurrentTime(currentNameDir)
+
+            print "At " + str(currentTime) + " fs, max population is " + str(currentPopList[0][3])
 
             violated = False
             if (currentPopList[0][3] > natPopThres):
@@ -142,6 +160,12 @@ if __name__ == '__main__':
                 except OSError:
                     pass
                 break
+
+            # determine the waiting time: twait = 10' + (110'/tfinal) * t
+            waitTime = int(600.0 + (6600.0 / tfinal) * currentTime)
+            print "Waiting for " + str(waitTime) + " seconds"
+            time.sleep(waitTime)
+
 
 
         # check, if the MCTDH calculation finished sucessfully and is converged, or not
@@ -158,7 +182,10 @@ if __name__ == '__main__':
                     currMd = int(currentPopList[i][2][5:])
                     currSPFId = currLn.index('>') + (2 * currMd)
                     currSPFs = int(currLn[currSPFId])
-                    newInputData[currLNr] = currLn[:currSPFId - 1] + " " + str(currSPFs + 1) + currLn[currSPFId + 1:]
+                    if (currentPopList[i][3] > 2.0 * natPopThres):
+                        newInputData[currLNr] = currLn[:currSPFId - 1] + " " + str(currSPFs + 2) + currLn[currSPFId + 1:]
+                    else:
+                        newInputData[currLNr] = currLn[:currSPFId - 1] + " " + str(currSPFs + 1) + currLn[currSPFId + 1:]
 
             currentNumber = int(currentNameDir[-3:])
             newNumber = currentNumber + 1
