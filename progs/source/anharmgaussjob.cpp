@@ -32,7 +32,6 @@
 
 const double shiftFac = 0.03;
 
-void gram_schmidt(Eigen::MatrixXd &d);
 
 /*
  * Create a Gaussian09 input file for a frequency job with a structure
@@ -66,6 +65,8 @@ int main(int argc, char *argv[])
 
 	std::ifstream startFile(baseFileName + ".fchk", std::ifstream::in);
 	GaussFchk startFchk(startFile);
+
+	std::cout << "displacing along mode " << mode << std::endl;
 
 	VibrationalAnalysis vibAn(startFchk);
 
