@@ -25,7 +25,6 @@
 #include <fstream>
 #include <iomanip>
 #include <cmath>
-#include <boost/filesystem.hpp>
 #include "utilities.h"
 #include "constants.h"
 
