@@ -129,7 +129,7 @@ if __name__ == '__main__':
     while True:
 
         # run the calculation:
-        print "Starting calculation ", + str(currentNameDir)
+        print "Starting calculation " + str(currentNameDir)
         mctdhCommand = [mctdhExe, "-mnd", currentInputName]
 
         MCTDHproc = subprocess.Popen(mctdhCommand)
