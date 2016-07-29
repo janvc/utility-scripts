@@ -34,7 +34,6 @@ int main(int argc, char *argv[])
 	desc.add_options()
 		("help,h", "produce this help message")
 		("file,f", po::value<std::string>(&filename_g)->required(), "the Fchk file")
-		("efile,e", po::value<std::string>(&filename_e)->required(), "the Fchk file")
 	;
 	po::variables_map vm;
 	po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -46,24 +45,21 @@ int main(int argc, char *argv[])
 	po::notify(vm);
 
 
-	//std::string basename = filename.substr(0, filename.find_last_of("."));
+	std::string basename = filename_g.substr(0, filename_g.find_last_of("."));
+	std::string logName = basename + ".log";
 
 	std::ifstream fchkFile_g(filename_g, std::ifstream::in);
-	std::ifstream fchkFile_e(filename_e, std::ifstream::in);
 
-	GaussFchk fchk(fchkFile_e);
 
 	VibrationalAnalysis vibAn(fchkFile_g);
 
 	vibAn.prtMinGeo();
 	vibAn.prtFreqs();
 	vibAn.prtMinModes();
-//	vibAn.createThirdDerivs(basename);
-//	vibAn.prtCubics();
+	vibAn.readAnharm(logName);
 
-	vibAn.calcKappa(fchk);
 
-	//vibAn.createAnharmMCTDHoper("test_mctdh", 1.0e-13);
+	vibAn.createAnharmMCTDHoper("test_mctdh", 2.0e-9);
 
 	return 0;
 }
