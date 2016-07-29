@@ -37,6 +37,7 @@ public:
 	virtual ~VibrationalAnalysis();
 
 	void createThirdDerivs(std::string &baseName);
+	void readAnharm(const std::string &GaussLogName);
 	void createAnharmMCTDHoper(const std::string &baseName, const double thres);
 	void calcKappa(GaussFchk &esFchk);
 
@@ -73,6 +74,7 @@ public:
 
 	Eigen::VectorXd intFC() const;
 	Eigen::VectorXd intFrq() const;
+	Eigen::VectorXd auFrq() const;
 
 	Eigen::VectorXd mu() const;
 
@@ -80,6 +82,9 @@ public:
 	Eigen::Matrix3d inert() const;
 	Eigen::Vector3d moments() const;
 	Eigen::Matrix3d prinAxes() const;
+
+	arma::Cube<double> thirdDerivs() const;
+	Eigen::VectorXd diag4thDerivs() const;
 
 
 private:
@@ -114,6 +119,8 @@ private:
 	Eigen::VectorXd IntFreqs;	// vibrational frequencies [cm-1] (internal Hessian)
 	Eigen::VectorXd AUFreqs;	// frequencies of the normal modes in atomic units
 	Eigen::VectorXd RedMasses;	// 'reduced masses' of the normal modes
+
+	Eigen::VectorXd fourthDerivs;	// diagonal fourth derivatives
 
 	Eigen::MatrixXd MassInvMat;	// diagonal matrix of inverse square roots of atomic masses
 	Eigen::MatrixXd Fcart_min;	// Hessian matrix at the minimum (cartesian)

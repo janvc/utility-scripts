@@ -250,6 +250,139 @@ void VibrationalAnalysis::createThirdDerivs(std::string &baseName)
 				phiTmp(i,j,k) = (rawDerivs(i,j,k) + rawDerivs(j,k,i) + rawDerivs(k,i,j)) / 3.0;
 
 	avgDerivs = phiTmp;
+
+	/*
+	 * create diagonal fourth derivatives:
+	 */
+	fourthDerivs = Eigen::VectorXd::Zero(m_Nmodes);
+	for (int i = 0; i < m_Nmodes; i++)
+		fourthDerivs(i) = (Fdiag_Dp.at(i)(i,i) + Fdiag_Dn.at(i)(i,i) - 2.0 * IntFrcCon(i)) / (shiftFac * shiftFac);
+}
+
+void VibrationalAnalysis::readAnharm(const std::string &GaussLogName)
+{
+	/*
+	 * The conversion factor from the 'reduced values' that Gaussian prints out to
+	 * mass-weighted atomic units:
+	 */
+	double tmpFac = planck * 1.0e20 / (4.0 * M_PI * M_PI * me * c0 * 100.0);
+	double cubFac = (Eh / (planck * c0 * 100.0 * ang2a0 * ang2a0 * ang2a0)) * tmpFac * sqrt(tmpFac);
+	double quartFac = (planck * Eh * 1.0e40) / (c0 * c0 * c0 * 1.0e6 * ang2a0 * ang2a0 * ang2a0 * ang2a0 * me * me * 16.0 * M_PI * M_PI * M_PI * M_PI);
+
+	std::ifstream GaussLog(GaussLogName, std::ifstream::in);
+
+	std::string currentLine;
+	std::vector<int> index1, index2, index3;
+	std::vector<double> RedValues;
+
+	// find the start of the cubic force constants:
+	while (std::getline(GaussLog, currentLine))
+		if (currentLine.find("CUBIC FORCE CONSTANTS IN NORMAL MODES") != std::string::npos)
+			break;
+
+	// skip the next 8 lines:
+	for (int i = 0; i < 8; i++)
+		GaussLog.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+
+	int i, j, k, l;
+	double RedValue;
+
+	while (std::getline(GaussLog, currentLine))
+	{
+		if (currentLine.size() == 0)
+			break;
+
+		// If the index of the normal modes has three digits, Gaussian prints
+		// them without spaces, so we have to split the line manually:
+		i = std::stoi(currentLine.substr(3, 3));
+		j = std::stoi(currentLine.substr(6, 3));
+		k = std::stoi(currentLine.substr(9, 3));
+		RedValue = std::stod(currentLine.substr(13, 14));
+		index1.push_back(m_Nmodes - i);
+		index2.push_back(m_Nmodes - j);
+		index3.push_back(m_Nmodes - k);
+		RedValues.push_back(RedValue);
+	}
+
+	arma::Cube<double> phiTmp(m_Nmodes, m_Nmodes, m_Nmodes);
+	for (int i = 0; i < m_Nmodes; i++)
+		for (int j = 0; j < m_Nmodes; j++)
+			for (int k = 0; k < m_Nmodes; k++)
+				phiTmp(i,j,k) = 0.0;
+
+	for (int i = 0; i < int(index1.size()); i++)
+	{
+		phiTmp(index1[i], index2[i], index3[i]) = RedValues[i] * sqrt(double(IntFreqs(index1[i])) * double(IntFreqs(index2[i])) * double(IntFreqs(index3[i]))) / cubFac;
+		phiTmp(index2[i], index1[i], index3[i]) = RedValues[i] * sqrt(double(IntFreqs(index1[i])) * double(IntFreqs(index2[i])) * double(IntFreqs(index3[i]))) / cubFac;
+		phiTmp(index1[i], index3[i], index2[i]) = RedValues[i] * sqrt(double(IntFreqs(index1[i])) * double(IntFreqs(index2[i])) * double(IntFreqs(index3[i]))) / cubFac;
+		phiTmp(index3[i], index2[i], index1[i]) = RedValues[i] * sqrt(double(IntFreqs(index1[i])) * double(IntFreqs(index2[i])) * double(IntFreqs(index3[i]))) / cubFac;
+		phiTmp(index3[i], index1[i], index2[i]) = RedValues[i] * sqrt(double(IntFreqs(index1[i])) * double(IntFreqs(index2[i])) * double(IntFreqs(index3[i]))) / cubFac;
+		phiTmp(index2[i], index3[i], index1[i]) = RedValues[i] * sqrt(double(IntFreqs(index1[i])) * double(IntFreqs(index2[i])) * double(IntFreqs(index3[i]))) / cubFac;
+	}
+
+	avgDerivs = phiTmp;
+
+	std::cout << "Cubic force constants read from Gaussian log file:\n";
+	for (int i = 0; i < m_Nmodes; i++)
+		for (int j = i; j < m_Nmodes; j++)
+			for (int k = j; k < m_Nmodes; k++)
+			{
+				std::cout << std::setw(4) << i + 1
+						  << std::setw(4) << j + 1
+						  << std::setw(4) << k + 1;
+				if (phiTmp(i,j,k) == 0)
+					std::cout << "       0       \n";
+				else
+					std::cout << std::scientific << std::setprecision(5)
+							  << std::setw(13) << double(IntFreqs(i))
+							  << std::setw(13) << double(IntFreqs(j))
+							  << std::setw(13) << double(IntFreqs(k))
+							  << std::setw(13) << phiTmp(i,j,k)
+							  << std::endl;
+			}
+
+	// find the start of the quartic force constants:
+	GaussLog.clear();
+	GaussLog.seekg(0);
+	while (std::getline(GaussLog, currentLine))
+		if (currentLine.find("QUARTIC FORCE CONSTANTS IN NORMAL MODES") != std::string::npos)
+			break;
+
+	// skip the next 8 lines:
+	for (int i = 0; i < 8; i++)
+		GaussLog.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+
+	std::vector<int> qindex1, qindex2, qindex3, qindex4;
+	std::vector<double> Rqvalues;
+
+	while (std::getline(GaussLog, currentLine))
+	{
+		if (currentLine.size() == 0)
+			break;
+		i = std::stoi(currentLine.substr(0, 3));
+		j = std::stoi(currentLine.substr(3, 3));
+		k = std::stoi(currentLine.substr(6, 3));
+		l = std::stoi(currentLine.substr(9, 3));
+		RedValue = std::stod(currentLine.substr(13, 14));
+		qindex1.push_back(m_Nmodes - i);
+		qindex2.push_back(m_Nmodes - j);
+		qindex3.push_back(m_Nmodes - k);
+		qindex4.push_back(m_Nmodes - l);
+		Rqvalues.push_back(RedValue);
+	}
+
+	fourthDerivs = Eigen::VectorXd::Zero(m_Nmodes);
+
+	for (int i = 0; i < int(qindex1.size()); i++)
+		if (qindex1[i] == qindex2[i] && qindex1[i] ==  qindex3[i] && qindex1[i] == qindex4[i])
+			fourthDerivs(qindex1[i]) = Rqvalues[i] * double(IntFreqs(qindex1[i])) * double(IntFreqs(qindex1[i])) / quartFac;
+
+	std::cout << "Diagonal fourth derivatives read from log file:\n";
+	for (int i = 0; i < m_Nmodes; i++)
+		std::cout << std::setw(4) << i + 1 << std::scientific << std::setprecision(7)
+				  << std::setw(18) << double(fourthDerivs(i))
+				  << std::endl;
+
 }
 
 void VibrationalAnalysis::createAnharmMCTDHoper(const std::string &baseName, const double thres)
@@ -281,18 +414,31 @@ void VibrationalAnalysis::createAnharmMCTDHoper(const std::string &baseName, con
 		operFile << std::endl;
 	}
 	// write the third-order couplings:
+	operFile << "    # cubic couplings:\n";
+	operFile << "    # the numbers here are equal to 1/6 * phi_ijk\n";
 	for (int i = 0; i < m_Nmodes; i++)
-		for (int j = i + 1; j < m_Nmodes; j++)
-			for (int k = j + 1; k < m_Nmodes; k++)
+		for (int j = i; j < m_Nmodes; j++)
+			for (int k = j; k < m_Nmodes; k++)
 				if (std::abs(avgDerivs(i,j,k)) >= thres)
 				{
 					operFile << "    phi_" << std::setfill('0') << std::setw(3) << i + 1
 									<< "_" << std::setfill('0') << std::setw(3) << j + 1
 									<< "_" << std::setfill('0') << std::setw(3) << k + 1
 									<< " = ";
-					WriteFortranNumber(operFile, avgDerivs(i,j,k));
+					WriteFortranNumber(operFile, avgDerivs(i,j,k) / 6.0);
 					operFile << std::endl;
 				}
+
+	// write the diagonal fourth derivatives:
+	operFile << "    # diagonal quartic force constants:\n";
+	operFile << "    # the numbers here are equal to 1/24 * fq_iiii\n";
+	for (int i = 0; i < m_Nmodes; i++)
+		if (std::abs(double(fourthDerivs(i))) >= thres)
+		{
+			operFile << "    fdia_" << std::setfill('0') << std::setw(3) << i + 1 << " = ";
+			WriteFortranNumber(operFile, double(fourthDerivs(i)) / 24.0);
+			operFile << std::endl;
+		}
 
 	operFile << "end-parameter-section\n\n";
 
@@ -315,15 +461,41 @@ void VibrationalAnalysis::createAnharmMCTDHoper(const std::string &baseName, con
 		operFile << "0.5*f_" << std::setfill('0') << std::setw(3) << i + 1 << "       |" << i + 1 << " q^2\n";
 
 	for (int i = 0; i < m_Nmodes; i++)
-		for (int j = i + 1; j < m_Nmodes; j++)
-			for (int k = j + 1; k < m_Nmodes; k++)
+		for (int j = i; j < m_Nmodes; j++)
+			for (int k = j; k < m_Nmodes; k++)
 				if (std::abs(avgDerivs(i,j,k)) >= thres)
-					operFile << "phi_" << std::setfill('0') << std::setw(3) << i + 1
-								<< "_" << std::setfill('0') << std::setw(3) << j + 1
-								<< "_" << std::setfill('0') << std::setw(3) << k + 1
-								<< " |" << i + 1 << " q"
-								<< " |" << j + 1 << " q"
-								<< " |" << k + 1 << " q\n";
+				{
+					if (i == j && i == k)	// diagonal elements
+						operFile << "phi_" << std::setfill('0') << std::setw(3) << i + 1
+									<< "_" << std::setfill('0') << std::setw(3) << i + 1
+									<< "_" << std::setfill('0') << std::setw(3) << i + 1
+									<< " |" << i + 1 << " q^3\n";
+					else if (i == j)
+						operFile << "phi_" << std::setfill('0') << std::setw(3) << i + 1
+									<< "_" << std::setfill('0') << std::setw(3) << i + 1
+									<< "_" << std::setfill('0') << std::setw(3) << k + 1
+									<< " |" << i + 1 << " q^2"
+									<< " |" << k + 1 << " q\n";
+					else if (j == k)
+						operFile << "phi_" << std::setfill('0') << std::setw(3) << i + 1
+									<< "_" << std::setfill('0') << std::setw(3) << j + 1
+									<< "_" << std::setfill('0') << std::setw(3) << j + 1
+									<< " |" << i + 1 << " q"
+									<< "   |" << j + 1 << " q^2\n";
+					else
+						operFile << "phi_" << std::setfill('0') << std::setw(3) << i + 1
+									<< "_" << std::setfill('0') << std::setw(3) << j + 1
+									<< "_" << std::setfill('0') << std::setw(3) << k + 1
+									<< " |" << i + 1 << " q"
+									<< "   |" << j + 1 << " q"
+									<< "   |" << k + 1 << " q\n";
+
+				}
+
+	for (int i = 0; i < m_Nmodes; i++)
+		if (std::abs(double(fourthDerivs(i))) >= thres)
+			operFile << "fdia_" << std::setfill('0') << std::setw(3) << i + 1
+					 << "        |" << i + 1 << " q^4\n";
 
 	operFile << "end-hamiltonian-section\n\n";
 
@@ -337,6 +509,12 @@ void VibrationalAnalysis::createAnharmMCTDHoper(const std::string &baseName, con
 		operFile << "modes | q_" << std::setfill('0') << std::setw(3) << i + 1 << std::endl;
 		operFile << "1.0   |1 KE\n";
 		operFile << "0.5*f_" << std::setfill('0') << std::setw(3) << i + 1 << " |1 q^2\n";
+		if (std::abs(avgDerivs(i,i,i)) >= thres)
+			operFile << "phi_" << std::setfill('0') << std::setw(3) << i + 1 << "_"
+							   << std::setfill('0') << std::setw(3) << i + 1 << "_"
+							   << std::setfill('0') << std::setw(3) << i + 1 << " |1 q^3\n";
+		if (std::abs(double(fourthDerivs(i))) >= thres)
+			operFile << "fdia_" << std::setfill('0') << std::setw(3) << i + 1 << " |1 q^4\n";
 		operFile << "end-hamiltonian-section\n\n";
 	}
 
@@ -347,7 +525,7 @@ void VibrationalAnalysis::calcKappa(GaussFchk &esFchk)
 {
 	Eigen::VectorXd esGrad_x = esFchk.ReadVector("Cartesian Gradient");
 
-	Eigen::VectorXd esGrad_q = MassInvMat.inverse() * esGrad_x;
+	Eigen::VectorXd esGrad_q = MassInvMat * esGrad_x;
 
 	Eigen::VectorXd esGrad_nm = Lmwc_min.transpose() * esGrad_q;
 
@@ -523,9 +701,9 @@ void VibrationalAnalysis::prtCubics()
 
 	std::cout << "Cubic force constants:\n";
 
-	for (int i = 0; i < m_Nmodes; i++)
-		for (int j = i; j < m_Nmodes; j++)
-			for (int k = j; k < m_Nmodes; k++)
+	for (int i = m_Nmodes - 1; i >= 0; i--)
+		for (int j = m_Nmodes - 1; j >= i; j--)
+			for (int k = m_Nmodes - 1; k >= j; k--)
 				std::cout << std::setw(4) << i + 1
 						  << std::setw(4) << j + 1
 						  << std::setw(4) << k + 1
@@ -536,6 +714,16 @@ void VibrationalAnalysis::prtCubics()
 						  << std::setw(20) << double(avgDerivs(i,j,k))
 						  << std::setw(20) << double(avgDerivs(i,j,k)) / sqrt(double(AUFreqs(i)) * double(AUFreqs(j)) * double(AUFreqs(k)))
 						  << std::endl;
+
+	std::cout << "Diagonal fourth derivatives:\n";
+
+	for (int i = 0; i < m_Nmodes; i++)
+		std::cout << std::setw(4) << i + 1
+				  << std::scientific << std::setprecision(7)
+				  << std::setw(15) << double(Fdiag_Dp.at(i)(i,i))
+				  << std::setw(15) << double(Fdiag_Dn.at(i)(i,i))
+				  << std::setw(15) << double(IntFrcCon(i))
+				  << std::setw(15) << double(fourthDerivs(i)) << std::endl;
 }
 
 int VibrationalAnalysis::Natoms() const
@@ -623,6 +811,11 @@ Eigen::VectorXd VibrationalAnalysis::intFrq() const
 	return IntFreqs;
 }
 
+Eigen::VectorXd VibrationalAnalysis::auFrq() const
+{
+	return AUFreqs;
+}
+
 Eigen::VectorXd VibrationalAnalysis::mu() const
 {
 	return RedMasses;
@@ -656,6 +849,16 @@ Eigen::VectorXd VibrationalAnalysis::masses() const
 Eigen::VectorXi VibrationalAnalysis::atomicNumbers() const
 {
 	return atNums;
+}
+
+arma::Cube<double> VibrationalAnalysis::thirdDerivs() const
+{
+	return avgDerivs;
+}
+
+Eigen::VectorXd VibrationalAnalysis::diag4thDerivs() const
+{
+	return fourthDerivs;
 }
 
 void VibrationalAnalysis::calcCom()
