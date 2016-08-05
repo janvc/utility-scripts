@@ -40,6 +40,15 @@ def analNatPop(nameDir):
     popFileName = nameDir + "/lownatpop"
     popList = []
 
+    if not os.path.isfile(popFileName):
+        emptyList = []
+        tmpList = []
+        for i in range(4):
+            tmpList.append(0)
+        emptyList.append(tmpList)
+        emptyList.append(tmpList)
+        return emptyList
+
     with open(popFileName) as popFile:
         for line in popFile:
             if "#" in line:     # the layer/node/mode information
@@ -72,6 +81,9 @@ def analNatPop(nameDir):
 
 def getCurrentTime(nameDir):
     speedFileName = nameDir + "/speed"
+
+    if not os.path.isfile(speedFileName):
+        return 0.0
 
     currentTime = 0.0
     with open(speedFileName) as speedFile:
