@@ -103,6 +103,164 @@ void WriteMatrixToFile(std::ofstream &stream, const Eigen::MatrixXd &mat, const 
 	stream << std::endl;
 }
 
+void WriteGaussMatrix(const Eigen::MatrixXd &mat)
+{
+	int blocksize = 6;
+	int remainder = mat.cols() % blocksize;
+	int width = 14;
+
+	for (int j = 0; j < mat.cols() - remainder; j += blocksize)
+	{
+		std::cout << "  ";
+		for (int l = 0; l < blocksize; l++)
+			std::cout << std::setw(width) << j + l + 1;
+		std::cout << std::endl;
+
+		for (int i = 0; i < mat.rows(); i++)
+		{
+			std::cout << std::setw(5) << i + 1 << " "
+					  << std::scientific << std::setprecision(5);
+			for (int k = 0; k < blocksize; k++)
+				std::cout << std::setw(width) << double(mat(i,j + k));
+			std::cout << std::endl;
+		}
+
+	}
+
+	if (remainder != 0)
+	{
+		std::cout << "  ";
+		for (int j = mat.cols() - remainder; j < mat.cols(); j++)
+			std::cout << std::setw(width) << j + 1;
+		std::cout << std::endl;
+		for (int i = 0; i < mat.rows(); i++)
+		{
+			std::cout << std::setw(5) << i + 1 << " ";
+			for (int j = mat.cols() - remainder; j < mat.cols(); j++)
+				std::cout << std::scientific << std::setprecision(5) << std::setw(width) << double(mat(i,j));
+			std::cout << std::endl;
+		}
+	}
+}
+
+void WriteGaussMatrixToFile(std::ofstream &stream, const Eigen::MatrixXd &mat)
+{
+	int blocksize = 6;
+	int remainder = mat.cols() % blocksize;
+	int width = 14;
+
+	for (int j = 0; j < mat.cols() - remainder; j += blocksize)
+	{
+		stream << "  ";
+		for (int l = 0; l < blocksize; l++)
+			stream << std::setw(width) << j + l + 1;
+		stream << std::endl;
+
+		for (int i = 0; i < mat.rows(); i++)
+		{
+			stream << std::setw(5) << i + 1 << " "
+					  << std::scientific << std::setprecision(5);
+			for (int k = 0; k < blocksize; k++)
+				stream << std::setw(width) << double(mat(i,j + k));
+			stream << std::endl;
+		}
+
+	}
+
+	if (remainder != 0)
+	{
+		stream << "  ";
+		for (int j = mat.cols() - remainder; j < mat.cols(); j++)
+			stream << std::setw(width) << j + 1;
+		stream << std::endl;
+		for (int i = 0; i < mat.rows(); i++)
+		{
+			stream << std::setw(5) << i + 1 << " ";
+			for (int j = mat.cols() - remainder; j < mat.cols(); j++)
+				stream << std::scientific << std::setprecision(5) << std::setw(width) << double(mat(i,j));
+			stream << std::endl;
+		}
+	}
+}
+
+void WriteSymmGaussMatrix(const Eigen::MatrixXd &mat)
+{
+	int dimension = mat.cols();
+	int blocksize = 6;
+	int remainder = dimension % blocksize;
+	int width = 14;
+
+	for (int j = 0; j < dimension - remainder; j += blocksize)
+	{
+		std::cout << "  ";
+		for (int l = 0; l < blocksize; l++)
+			std::cout << std::setw(width) << j + l + 1;
+		std::cout << std::endl;
+		for (int i = j; i < dimension; i++)
+		{
+			std::cout << std::setw(5) << i + 1 << " ";
+			for (int k = 0; k < blocksize; k++)
+				if (j + k <= i)
+					std::cout << std::scientific << std::setprecision(5) << std::setw(width) << double(mat(i,j + k));
+			std::cout << std::endl;
+		}
+	}
+
+	if (remainder != 0)
+	{
+		std::cout << "  ";
+		for (int i = dimension - remainder; i < dimension; i++)
+			std::cout << std::setw(width) << i + 1;
+		std::cout << std::endl;
+		for (int i = dimension - remainder; i < dimension; i++)
+		{
+			std::cout << std::setw(5) << i + 1 << " ";
+			for (int j = dimension - remainder; j <= i; j++)
+				std::cout << std::scientific << std::setprecision(5) << std::setw(width) << double(mat(i,j));
+			std::cout << std::endl;
+		}
+	}
+}
+
+void WriteSymmGaussMatrixToFile(std::ofstream &stream, const Eigen::MatrixXd &mat)
+{
+	int dimension = mat.cols();
+	int blocksize = 6;
+	int remainder = dimension % blocksize;
+	int width = 14;
+
+	for (int j = 0; j < dimension - remainder; j += blocksize)
+	{
+		stream << "  ";
+		for (int l = 0; l < blocksize; l++)
+			stream << std::setw(width) << j + l + 1;
+		stream << std::endl;
+		for (int i = j; i < dimension; i++)
+		{
+			stream << std::setw(5) << i + 1 << " ";
+			for (int k = 0; k < blocksize; k++)
+				if (j + k <= i)
+					stream << std::scientific << std::setprecision(5) << std::setw(width) << double(mat(i,j + k));
+			stream << std::endl;
+		}
+	}
+
+	if (remainder != 0)
+	{
+		stream << "  ";
+		for (int i = dimension - remainder; i < dimension; i++)
+			stream << std::setw(width) << i + 1;
+		stream << std::endl;
+		for (int i = dimension - remainder; i < dimension; i++)
+		{
+			stream << std::setw(5) << i + 1 << " ";
+			for (int j = dimension - remainder; j <= i; j++)
+				stream << std::scientific << std::setprecision(5) << std::setw(width) << double(mat(i,j));
+			stream << std::endl;
+		}
+	}
+}
+
 void WriteVector(const Eigen::VectorXd &vec, const int dig, const bool clean, const double thres)
 {
 	int width = dig + 8;

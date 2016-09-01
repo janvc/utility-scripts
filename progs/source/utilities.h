@@ -25,6 +25,12 @@
 void WriteMatrix(const Eigen::MatrixXd &mat, const int dig = 5, const bool clean = false, const double thres = 1.0e-10);
 void WriteMatrixToFile(std::ofstream &stream, const Eigen::MatrixXd &mat, const int dig = 5, const bool clean = false, const double thres = 1.0e-10);
 
+void WriteGaussMatrix(const Eigen::MatrixXd &mat);
+void WriteGaussMatrixToFile(std::ofstream &stream, const Eigen::MatrixXd &mat);
+
+void WriteSymmGaussMatrix(const Eigen::MatrixXd &mat);
+void WriteSymmGaussMatrixToFile(std::ofstream &stream, const Eigen::MatrixXd &mat);
+
 void WriteVector(const Eigen::VectorXd &vec, const int dig = 5, const bool clean = false, const double thres = 1.0e-10);
 void WriteVectorToFile(std::ofstream &stream, const Eigen::VectorXd &vec, const int dig = 5, const bool clean = false, const double thres = 1.0e-10);
 
