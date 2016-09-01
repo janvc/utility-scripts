@@ -322,25 +322,6 @@ void VibrationalAnalysis::readAnharm(const std::string &GaussLogName)
 
 	avgDerivs = phiTmp;
 
-	std::cout << "Cubic force constants read from Gaussian log file:\n";
-	for (int i = 0; i < m_Nmodes; i++)
-		for (int j = i; j < m_Nmodes; j++)
-			for (int k = j; k < m_Nmodes; k++)
-			{
-				std::cout << std::setw(4) << i + 1
-						  << std::setw(4) << j + 1
-						  << std::setw(4) << k + 1;
-				if (phiTmp(i,j,k) == 0)
-					std::cout << "       0       \n";
-				else
-					std::cout << std::scientific << std::setprecision(5)
-							  << std::setw(13) << double(IntFreqs(i))
-							  << std::setw(13) << double(IntFreqs(j))
-							  << std::setw(13) << double(IntFreqs(k))
-							  << std::setw(13) << phiTmp(i,j,k)
-							  << std::endl;
-			}
-
 	// find the start of the quartic force constants:
 	GaussLog.clear();
 	GaussLog.seekg(0);
@@ -376,13 +357,6 @@ void VibrationalAnalysis::readAnharm(const std::string &GaussLogName)
 	for (int i = 0; i < int(qindex1.size()); i++)
 		if (qindex1[i] == qindex2[i] && qindex1[i] ==  qindex3[i] && qindex1[i] == qindex4[i])
 			fourthDerivs(qindex1[i]) = Rqvalues[i] * double(IntFreqs(qindex1[i])) * double(IntFreqs(qindex1[i])) / quartFac;
-
-	std::cout << "Diagonal fourth derivatives read from log file:\n";
-	for (int i = 0; i < m_Nmodes; i++)
-		std::cout << std::setw(4) << i + 1 << std::scientific << std::setprecision(7)
-				  << std::setw(18) << double(fourthDerivs(i))
-				  << std::endl;
-
 }
 
 void VibrationalAnalysis::createAnharmMCTDHoper(const std::string &baseName, const double thres)
