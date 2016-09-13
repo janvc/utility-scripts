@@ -143,6 +143,7 @@ if __name__ == '__main__':
         # run the calculation:
         print "Starting calculation " + str(currentNameDir)
         mctdhCommand = [mctdhExe, "-mnd", currentInputName]
+        print " Time [fs]   max. natural population    waiting time [s]"
 
         MCTDHproc = subprocess.Popen(mctdhCommand)
 
@@ -157,7 +158,9 @@ if __name__ == '__main__':
             currentPopList = analNatPop(currentNameDir)
             currentTime = getCurrentTime(currentNameDir)
 
-            print "At " + str(currentTime) + " fs, max population is " + str(currentPopList[0][3])
+            # determine the waiting time: twait = 10' + (110'/tfinal) * t
+            waitTime = int(600.0 + (6600.0 / tfinal) * currentTime)
+            print '   {0:.3f}           {1:.5f}               {2:5d}'.format(currentTime, currentPopList[0][3], waitTime)
 
             violated = False
             if (currentPopList[0][3] > natPopThres):
@@ -173,9 +176,6 @@ if __name__ == '__main__':
                     pass
                 break
 
-            # determine the waiting time: twait = 10' + (110'/tfinal) * t
-            waitTime = int(600.0 + (6600.0 / tfinal) * currentTime)
-            print "Waiting for " + str(waitTime) + " seconds"
             time.sleep(waitTime)
 
 
@@ -192,12 +192,19 @@ if __name__ == '__main__':
                     currLNr = mlStart + int(currentPopList[i][1][5:])
                     currLn = currentInputData[currLNr]
                     currMd = int(currentPopList[i][2][5:])
-                    currSPFId = currLn.index('>') + (2 * currMd)
-                    currSPFs = int(currLn[currSPFId])
-                    if (currentPopList[i][3] > 2.0 * natPopThres):
-                        newInputData[currLNr] = currLn[:currSPFId - 1] + " " + str(currSPFs + 2) + currLn[currSPFId + 1:]
-                    else:
-                        newInputData[currLNr] = currLn[:currSPFId - 1] + " " + str(currSPFs + 1) + currLn[currSPFId + 1:]
+
+                    currSPFlist = currLn[currLn.index('>') + 1:].split()
+
+                    newInputData[currLNr] = currLn[:currLn.index('>') + 1]
+                    for j in range(len(currSPFlist)):
+                        if (j == currMd - 1):
+                            if (currentPopList[i][3] > 2.0 * natPopThres):
+                                newInputData[currLNr] += " " + str(int(currSPFlist[j]) + 2)
+                            else:
+                                newInputData[currLNr] += " " + str(int(currSPFlist[j]) + 1)
+                        else:
+                            newInputData[currLNr] += " " + str(int(currSPFlist[j]))
+                    newInputData[currLNr] += "\n"
 
             currentNumber = int(currentNameDir[-3:])
             newNumber = currentNumber + 1
