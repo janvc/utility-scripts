@@ -33,5 +33,6 @@ const double amu2au = 1822.88848325;
 const double Eh2eV = 27.21138344;
 
 const double ang2a0 = 1.0e10 * a0;
+const double fs2au = Eh / hbar * 1.0e-15;
 
 #endif /* CONSTANTS_H_ */
