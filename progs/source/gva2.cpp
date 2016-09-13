@@ -24,6 +24,7 @@
 #include <boost/program_options.hpp>
 #include "vibrationalanalysis.h"
 #include "GaussFchk.h"
+#include "utilities.h"
 
 int main(int argc, char *argv[])
 {
@@ -53,13 +54,8 @@ int main(int argc, char *argv[])
 
 	VibrationalAnalysis vibAn(fchkFile_g);
 
-	vibAn.prtMinGeo();
-	vibAn.prtFreqs();
-	vibAn.prtMinModes();
-	vibAn.readAnharm(logName);
-
-
-	vibAn.createAnharmMCTDHoper("test_mctdh", 2.0e-9);
+	WriteGaussMatrix(vibAn.Lmwc());
+	WriteSymmGaussMatrix(vibAn.Fmwc());
 
 	return 0;
 }
