@@ -48,12 +48,14 @@ int main(int argc, char *argv[])
 	 */
 	std::string GS_filename;
 	std::string ES_filename;
+	std::string basename;
 	namespace po = boost::program_options;
 	po::options_description desc("Allowed options");
 	desc.add_options()
 		("help,h", "produce this help message")
 		("gsfile,g", po::value<std::string>(&GS_filename)->required(), "the ground state FChk file")
 		("esfile,e", po::value<std::string>(&ES_filename)->required(), "the excited state FChk file")
+		("mctdh,m", po::value<std::string>(&basename)->required(),"base name of the MCTDH files")
 	;
 	po::variables_map vm;
 	po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -90,14 +92,18 @@ int main(int argc, char *argv[])
 	 */
 	std::ofstream logFile("log");
 
+	logFile << " Ground state fchk file:    " << GS_filename << std::endl;
+	logFile << "Excited state fchk file:    " << GS_filename << std::endl;
+	logFile << "MCTDH basename:             " << basename << std::endl << std::endl;
+
 	logFile << "Number of atoms:      " << Natoms << std::endl;
-	logFile << " Ground state total energy"
+	logFile << " Ground state total energy  "
 			<< std::setw(16) << std::setprecision(12) << Eg << " Eh\n";
-	logFile << "Excited state total energy"
+	logFile << "Excited state total energy  "
 			<< std::setw(16) << std::setprecision(12) << Ee << " Eh\n";
-	logFile << "adiabatic excitation energy:   "
+	logFile << "adiabatic excitation energy:     "
 			<< std::setprecision(9) << deltaE << " Eh\n";
-	logFile << "                             = " << deltaE * Eh2eV << "  eV\n\n";
+	logFile << "                               = " << deltaE * Eh2eV << "  eV\n\n";
 
 	logFile << "Ground and excited state cartesian coordinates in [bohr]:\n";
 	for (int i = 0; i < Ncoords; i++)
@@ -113,9 +119,9 @@ int main(int argc, char *argv[])
 	logFile << std::endl;
 
 	logFile << "Ground state cartesian Hessian in [Eh / bohr**2]:\n";
-	WriteMatrixToFile(logFile, GState.Fcart(), digits, clean, threshold);
-	logFile << "Excited state cartesian Hessian in [Eh / bohr**2]:\n";
-	WriteMatrixToFile(logFile, EState.Fcart(), digits, clean, threshold);
+	WriteSymmGaussMatrixToFile(logFile, GState.Fcart());
+	logFile << "\nExcited state cartesian Hessian in [Eh / bohr**2]:\n";
+	WriteSymmGaussMatrixToFile(logFile, EState.Fcart());
 
 
 	logFile << std::endl;
@@ -125,7 +131,7 @@ int main(int argc, char *argv[])
 		logFile << std::setw(5) << i + 1
 				<< std::setw(20) << std::scientific << std::setprecision(9) << double(GState.intFC()(i))
 				<< std::setw(13) << std::fixed << std::setprecision(4) << double(GState.intFrq()(i)) << std::endl;
-	logFile << "Excited state mass-weighted force constants in [Eh / a0**2 * me]" << std::endl
+	logFile << "\nExcited state mass-weighted force constants in [Eh / a0**2 * me]" << std::endl
 			<< "and frequencies in [cm**-1]:\n";
 	for (int i = 0; i < Nmodes; i++)
 		logFile << std::setw(5) << i + 1
@@ -134,13 +140,13 @@ int main(int argc, char *argv[])
 
 	logFile << std::endl;
 	logFile << "Ground state mass-weighted normal modes in [a0 * sqrt(me)]:\n";
-	WriteMatrixToFile(logFile, GState.Lmwc(), digits, clean, threshold);
-	logFile << "Excited state mass-weighted normal modes in [a0 * sqrt(me)]:\n";
-	WriteMatrixToFile(logFile, EState.Lmwc(), digits, clean, threshold);
-	logFile << "Metric of the mass-weighted ground state normal modes:\n";
-	WriteMatrixToFile(logFile, GState.Lmwc().transpose() * GState.Lmwc(), digits, clean, threshold);
-	logFile << "Metric of the mass-weighted excited state normal modes:\n";
-	WriteMatrixToFile(logFile, EState.Lmwc().transpose() * EState.Lmwc(), digits, clean, threshold);
+	WriteGaussMatrixToFile(logFile, GState.Lmwc());
+	logFile << "\nExcited state mass-weighted normal modes in [a0 * sqrt(me)]:\n";
+	WriteGaussMatrixToFile(logFile, EState.Lmwc());
+	logFile << "\nMetric of the mass-weighted ground state normal modes:\n";
+	WriteSymmGaussMatrixToFile(logFile, GState.Lmwc().transpose() * GState.Lmwc());
+	logFile << "\nMetric of the mass-weighted excited state normal modes:\n";
+	WriteSymmGaussMatrixToFile(logFile, EState.Lmwc().transpose() * EState.Lmwc());
 	logFile << std::endl;
 
 
@@ -155,17 +161,17 @@ int main(int argc, char *argv[])
 	Eigen::MatrixXd NMOe = SVDe.matrixU() * SVDe.matrixV().transpose();
 
 	logFile << "Ground state mass-weighted normal modes after Loewdin orthogonalization in [a0 * sqrt(me)]:\n";
-	WriteMatrixToFile(logFile, NMOg, digits, clean, threshold);
-	logFile << "Excited state mass-weighted normal modes after Loewdin orthogonalization in [a0 * sqrt(me)]:\n";
-	WriteMatrixToFile(logFile, NMOe, digits, clean, threshold);
-	logFile << "Metric of the orthogonalized ground state mass-weighted normal modes:\n";
-	WriteMatrixToFile(logFile, NMOg.transpose() * NMOg, digits, clean, threshold);
-	logFile << "Metric of the orthogonalized excited state mass-weighted normal modes:\n";
-	WriteMatrixToFile(logFile, NMOe.transpose() * NMOe, digits, clean, threshold);
-	logFile << "Difference between the original and orthogonalized ground state normal modes:\n";
-	WriteMatrixToFile(logFile, NMOg - NMg, digits, clean, threshold);
-	logFile << "Difference between the original and orthogonalized excited state normal modes:\n";
-	WriteMatrixToFile(logFile, NMOe - NMe, digits, clean, threshold);
+	WriteGaussMatrixToFile(logFile, NMOg);
+	logFile << "\nExcited state mass-weighted normal modes after Loewdin orthogonalization in [a0 * sqrt(me)]:\n";
+	WriteGaussMatrixToFile(logFile, NMOe);
+	logFile << "\nMetric of the orthogonalized ground state mass-weighted normal modes:\n";
+	WriteSymmGaussMatrixToFile(logFile, NMOg.transpose() * NMOg);
+	logFile << "\nMetric of the orthogonalized excited state mass-weighted normal modes:\n";
+	WriteSymmGaussMatrixToFile(logFile, NMOe.transpose() * NMOe);
+	logFile << "\nDifference between the original and orthogonalized ground state normal modes:\n";
+	WriteGaussMatrixToFile(logFile, NMOg - NMg);
+	logFile << "\nDifference between the original and orthogonalized excited state normal modes:\n";
+	WriteGaussMatrixToFile(logFile, NMOe - NMe);
 	logFile << std::endl;
 
 
@@ -207,7 +213,7 @@ int main(int argc, char *argv[])
 	COMg = calc_com(XSg, masses);
 	COMe = calc_com(XSe, masses);
 
-	logFile << "Center of mass of the ground and excited state after shifting:\n";
+	logFile << "\nCenter of mass of the ground and excited state after shifting:\n";
 	for (int i = 0; i < 3; i++)
 		logFile << std::setw(16) << std::scientific << std::setprecision(5) << double(COMg(i))
 				<< std::setw(16) << std::scientific << std::setprecision(5) << double(COMe(i)) << std::endl;
@@ -218,7 +224,7 @@ int main(int argc, char *argv[])
 		RMSD_before += std::abs(double(XSg(i) - XSe(i))) * std::abs(double(XSg(i) - XSe(i)));
 	RMSD_before /= Natoms;
 
-	logFile << "original RMSD between ground and excited state: " << RMSD_before << std::endl;
+	logFile << "\noriginal RMSD between ground and excited state:    " << RMSD_before << std::endl << std::endl;
 
 	// calculate the cross-correlation matrix between the two structures:
 	Eigen::Matrix3d corr(Eigen::Matrix3d::Zero());
@@ -228,8 +234,8 @@ int main(int argc, char *argv[])
 				corr(i,j) += XSg(3*k+i) * XSe(3*k+j);
 
 	logFile << "the cross-correlation matrix between the ground and excited state:\n";
-	WriteMatrixToFile(logFile, corr, digits, clean, threshold);
-	logFile << "Determinant of the correlation matrix: " << corr.determinant() << std::endl;
+	WriteGaussMatrixToFile(logFile, corr);
+	logFile << "\nDeterminant of the correlation matrix:    " << corr.determinant() << std::endl << std::endl;
 
 
 	// calculate the quaternion matrix:
@@ -275,17 +281,17 @@ int main(int argc, char *argv[])
 			BigRotMat.block(3*i, 3*i, 3, 3) = rotmat;
 
 	logFile << "Quaternion matrix resulting from the correlation matrix:\n";
-	WriteMatrixToFile(logFile, F, digits, clean, threshold);
-	logFile << "Eigenvalues of the Quaternion matrix:\n";
+	WriteSymmGaussMatrixToFile(logFile, F);
+	logFile << "\nEigenvalues of the Quaternion matrix:\n";
 	WriteVectorToFile(logFile, Feig.eigenvalues(), digits, clean, threshold);
-	logFile << "Eigenvectors of the Quaternion matrix:\n";
-	WriteMatrixToFile(logFile, Feig.eigenvectors(), digits, clean, threshold);
-	logFile << "The best-rotation Eigen-Quaternion:\n";
+	logFile << "\nEigenvectors of the Quaternion matrix:\n";
+	WriteGaussMatrixToFile(logFile, Feig.eigenvectors());
+	logFile << "\nThe best-rotation Eigen-Quaternion:\n";
 	WriteVectorToFile(logFile, lQuart, digits, clean, threshold);
-	logFile << "The optimal rotation matrix:\n";
-	WriteMatrixToFile(logFile, rotmat, digits, clean, threshold);
+	logFile << "\nThe optimal rotation matrix:\n";
+	WriteGaussMatrixToFile(logFile, rotmat);
 	logFile << "The big rotation matrix:\n";
-	WriteMatrixToFile(logFile, BigRotMat, digits, clean, threshold);
+	WriteGaussMatrixToFile(logFile, BigRotMat);
 
 	// rotate the structures
 	Eigen::VectorXd XRg(BigRotMat * XSg);
@@ -296,7 +302,7 @@ int main(int argc, char *argv[])
 		RMSD_after += std::abs(double(XRg(i) - XSe(i))) * std::abs(double(XRg(i) - XSe(i)));
 	RMSD_after /= Natoms;
 
-	logFile << "new RMSD after Quaternion rotation: " << RMSD_after << std::endl;
+	logFile << "\nnew RMSD after Quaternion rotation:    " << RMSD_after << std::endl;
 
 	Eigen::MatrixXd J(Eigen::MatrixXd::Zero(Nmodes, Nmodes));
 	Eigen::VectorXd K(Eigen::VectorXd::Zero(Nmodes));
@@ -309,10 +315,10 @@ int main(int argc, char *argv[])
 
 		Eigen::MatrixXd NMRg(BigRotMat * NMOg);
 
-		logFile << "the rotated ground state mass-weighted normal modes:\n";
-		WriteMatrixToFile(logFile, NMRg, digits, clean, threshold);
+		logFile << "\nthe rotated ground state mass-weighted normal modes:\n";
+		WriteGaussMatrixToFile(logFile, NMRg);
 		logFile << "and their metric:\n";
-		WriteMatrixToFile(logFile, NMRg.transpose() * NMRg, digits, clean, threshold);
+		WriteSymmGaussMatrixToFile(logFile, NMRg.transpose() * NMRg);
 
 		J = NMOe.transpose() * NMRg;
 		K = NMOe.transpose() * (QRg - QSe);
@@ -325,17 +331,17 @@ int main(int argc, char *argv[])
 		K = NMOe.transpose() * (QSg - QSe);
 	}
 
-	logFile << "Difference in equilibrium coordinates:\n";
+	logFile << "\nDifference in equilibrium coordinates:\n";
 	WriteVectorToFile(logFile, QSg - QSe, digits, clean, threshold);
 
-	logFile << "Duschinsky Matrix J:\n";
-	WriteMatrixToFile(logFile, J, digits, clean, threshold);
-	logFile << "Displacement Vector K:\n";
+	logFile << "\nDuschinsky Matrix J:\n";
+	WriteGaussMatrixToFile(logFile, J);
+	logFile << "\nDisplacement Vector K:\n";
 	WriteVectorToFile(logFile, K, digits, clean, threshold);
 
-	logFile << "Metric of the Duschinsky matrix:\n";
-	WriteMatrixToFile(logFile, J.transpose() * J, digits, clean, threshold);
-	logFile << "Determinant of the Duschinsky matrix: " << J.determinant() << std::endl;
+	logFile << "\nMetric of the Duschinsky matrix:\n";
+	WriteSymmGaussMatrixToFile(logFile, J.transpose() * J);
+	logFile << "\nDeterminant of the Duschinsky matrix:     " << J.determinant() << std::endl;
 
 
 	/*
@@ -377,27 +383,16 @@ int main(int argc, char *argv[])
 	for (int i = 0; i < Nmodes; i++)
 		d(i) = 0.5 * f2(i) * K(i) * K(i);
 
-	logFile << "Coupling matrix phi with the force constants fp on the diagonal:\n";
-	WriteMatrixToFile(logFile, phiFull, 3, true);
+	logFile << "\nCoupling matrix phi with the force constants fp on the diagonal:\n";
+	WriteSymmGaussMatrixToFile(logFile, phiFull);
 
 
 	/*
 	 * Start writing the MCTDH input files:
 	 */
-	std::cout << "Enter the base-name for the MCTDH files to be generated.\nThe files <name>.inp and <name>.op will then be written.\n>>> ";
-	std::string basename;
-	std::cin >> basename;
 	std::string inputFileName = basename + ".inp";
 	std::string operatorFileName = basename + ".op";
 
-	if (boost::filesystem::exists(inputFileName) || boost::filesystem::exists(operatorFileName))
-	{
-		std::cout << "One of the MCTDH files already exists. Should they be overwritten? (Y/N)\n>>> ";
-		char answer;
-		std::cin >> answer;
-		if (answer == 'N' || answer == 'n')
-			return 1;
-	}
 	std::ofstream inputFile(inputFileName);
 	std::ofstream operatorFile(operatorFileName);
 
