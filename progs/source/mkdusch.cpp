@@ -49,13 +49,19 @@ int main(int argc, char *argv[])
 	std::string GS_filename;
 	std::string ES_filename;
 	std::string basename;
+	double paraThres = 0.0;
+	bool noJ = false;
+	bool noK = false;
 	namespace po = boost::program_options;
 	po::options_description desc("Allowed options");
 	desc.add_options()
 		("help,h", "produce this help message")
 		("gsfile,g", po::value<std::string>(&GS_filename)->required(), "the ground state FChk file")
 		("esfile,e", po::value<std::string>(&ES_filename)->required(), "the excited state FChk file")
-		("mctdh,m", po::value<std::string>(&basename)->required(),"base name of the MCTDH files")
+		("mctdh,m", po::value<std::string>(&basename)->required(), "base name of the MCTDH files")
+		("threshold,t",po::value<double>(&paraThres), "threshold for including couplings/shifts")
+		("noj", "ignore Duschinsky rotation (assume unit matrix)")
+		("nok", "ignore displacement vector (assume zero vector)")
 	;
 	po::variables_map vm;
 	po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -64,6 +70,10 @@ int main(int argc, char *argv[])
 		std::cout << desc << std::endl;
 		return 1;
 	}
+	if (vm.count("noj"))
+		noJ = true;
+	if (vm.count("nok"))
+		noK = true;
 	po::notify(vm);
 
 
@@ -185,6 +195,7 @@ int main(int argc, char *argv[])
 	Eigen::Vector3d COMe = EState.com();
 
 	logFile << "Center of mass of the ground and excited state:\n";
+	logFile << "     ground state    excited state\n";
 	for (int i = 0; i < 3; i++)
 		logFile << std::setw(16) << std::scientific << std::setprecision(5) << double(COMg(i))
 				<< std::setw(16) << std::scientific << std::setprecision(5) << double(COMe(i)) << std::endl;
@@ -214,6 +225,7 @@ int main(int argc, char *argv[])
 	COMe = calc_com(XSe, masses);
 
 	logFile << "\nCenter of mass of the ground and excited state after shifting:\n";
+	logFile << "     ground state    excited state\n";
 	for (int i = 0; i < 3; i++)
 		logFile << std::setw(16) << std::scientific << std::setprecision(5) << double(COMg(i))
 				<< std::setw(16) << std::scientific << std::setprecision(5) << double(COMe(i)) << std::endl;
@@ -343,6 +355,16 @@ int main(int argc, char *argv[])
 	WriteSymmGaussMatrixToFile(logFile, J.transpose() * J);
 	logFile << "\nDeterminant of the Duschinsky matrix:     " << J.determinant() << std::endl;
 
+	if (noJ)
+	{
+		logFile << "\nWe are ignoring the Duschinsky rotation in this calculation, setting J = 1\n";
+		J = Eigen::MatrixXd::Identity(Nmodes, Nmodes);
+	}
+	if (noK)
+	{
+		logFile << "\nWe are ignoring the displacement in this calculation, setting k = 0\n";
+		K = Eigen::VectorXd::Zero(Nmodes);
+	}
 
 	/*
 	 * Write MCTDH files:
@@ -383,9 +405,48 @@ int main(int argc, char *argv[])
 	for (int i = 0; i < Nmodes; i++)
 		d(i) = 0.5 * f2(i) * K(i) * K(i);
 
-	logFile << "\nCoupling matrix phi with the force constants fp on the diagonal:\n";
+	logFile << "\nExcited state effective force constant matrix:\n";
 	WriteSymmGaussMatrixToFile(logFile, phiFull);
 
+	logFile << "\nShift coefficients:\n";
+	WriteVectorToFile(logFile, kappa, digits, clean, threshold);
+
+
+	/*
+	 * Determine, based on the values of phi and kappa, which modes
+	 * should be included in the spectrum calculation:
+	 */
+	std::vector<bool> isPresent(Nmodes);
+	std::vector<int> presentModes;
+	int Npresent = 0;
+	for (int i = 0; i < Nmodes; i++)
+	{
+		// find the maximum phi:
+		double maxPhi = 0.0;
+		for (int j = 0; j < Nmodes; j++)
+			if (i != j && double(phiFull(i,j)) > maxPhi)
+				maxPhi = std::abs(double(phiFull(i,j)));
+
+		if (maxPhi > paraThres || std::abs(double(kappa(i))) > paraThres)
+		{
+			isPresent.at(i) = true;
+			Npresent++;
+			presentModes.push_back(i);
+		}
+		else
+			isPresent.at(i) = false;
+	}
+
+	logFile << "\nModes included into the calculation:\n";
+	for (int i = 0; i < Nmodes; i++)
+	{
+		logFile << "  mode" << std::setw(4) << i + 1;
+		if (isPresent.at(i))
+			logFile << "   YES\n";
+		else
+			logFile << "   NO\n";
+	}
+	logFile << std::setw(4) << Npresent << " out of" << std::setw(4) << Nmodes << " included.\n";
 
 	/*
 	 * Start writing the MCTDH input files:
@@ -423,15 +484,15 @@ int main(int argc, char *argv[])
 	 * The mlbasis-section
 	 */
 	inputFile << "mlbasis-section\n";
-	for (int i = 0; i < Nmodes - 1; i += 2)
+	for (int i = 0; i < Npresent - 1; i+= 2)
 	{
-		if (Nmodes - i == 3)
-			inputFile << "    [q_" << std::setfill('0') << std::setw(3) << i + 1
-				          << " q_" << std::setfill('0') << std::setw(3) << i+1 + 1
-						  << " q_" << std::setfill('0') << std::setw(3) << i+2 + 1 << "]\n";
+		if (Npresent - i == 3)
+			inputFile << "    [q_" << std::setfill('0') << std::setw(3) << presentModes.at(i) + 1
+					  << " q_" << std::setfill('0') << std::setw(3) << presentModes.at(i+1) + 1
+					  << " q_" << std::setfill('0') << std::setw(3) << presentModes.at(i+2) + 1 << "]\n";
 		else
-			inputFile << "    [q_" << std::setfill('0') << std::setw(3) << i+0 + 1
-						  << " q_" << std::setfill('0') << std::setw(3) << i+1 + 1 << "]\n";
+			inputFile << "    [q_" << std::setfill('0') << std::setw(3) << presentModes.at(i) + 1
+					  << " q_" << std::setfill('0') << std::setw(3) << presentModes.at(i+1) + 1 << "]\n";
 	}
 	inputFile << "end-mlbasis-section\n\n";
 
@@ -440,22 +501,23 @@ int main(int argc, char *argv[])
 	 */
 	inputFile << "pbasis-section\n";
 	for (int i = 0; i < Nmodes; i++)
-	{
-		// determine the number of SPFs:
-		int numSPFs = lrint(-0.7 * log(double(fp(i)))) + 6;
+		if (isPresent.at(i))
+		{
+			// determine the number of SPFs:
+			int numSPFs = lrint(-0.7 * log(double(fp(i)))) + 6;
 
-		// determine the lower and upper bounds of the grid:
-		// the basis boundarie are (originally) -kappa / fp +- 6.5 / fp**1/4
-		double lowBound = -double(kappa(i) / fp(i)) - (std::abs(double(kappa(i) / fp(i))) + 7.5 / (sqrt(2.0) * pow(double(fp(i)), 0.25)));
-		double uppBound = -double(kappa(i) / fp(i)) + (std::abs(double(kappa(i) / fp(i))) + 7.5 / (sqrt(2.0) * pow(double(fp(i)), 0.25)));
+			// determine the lower and upper bounds of the grid:
+			// the basis boundarie are (originally) -kappa / fp +- 6.5 / fp**1/4
+			double lowBound = -double(kappa(i) / fp(i)) - (std::abs(double(kappa(i) / fp(i))) + 7.5 / (sqrt(2.0) * pow(double(fp(i)), 0.25)));
+			double uppBound = -double(kappa(i) / fp(i)) + (std::abs(double(kappa(i) / fp(i))) + 7.5 / (sqrt(2.0) * pow(double(fp(i)), 0.25)));
 
-		inputFile << "    q_" << std::setfill('0') << std::setw(3) << i + 1
-				  << "  ho  " << std::setw(3) << std::setfill(' ') << numSPFs << "  xi-xf  "
-				  << std::fixed << std::setfill(' ') << std::setw(8)
-				  << lowBound
-				  << std::fixed << std::setfill(' ') << std::setw(8)
-				  << uppBound << std::endl;
-	}
+			inputFile << "    q_" << std::setfill('0') << std::setw(3) << i + 1
+					<< "  ho  " << std::setw(3) << std::setfill(' ') << numSPFs << "  xi-xf  "
+					<< std::fixed << std::setfill(' ') << std::setw(8)
+			<< lowBound
+			<< std::fixed << std::setfill(' ') << std::setw(8)
+			<< uppBound << std::endl;
+		}
 	inputFile << "end-pbasis-section\n\n";
 
 	/*
@@ -472,10 +534,11 @@ int main(int argc, char *argv[])
 	inputFile << "init_wf-section\n";
 	inputFile << "    build\n";
 	for (int i = 0; i < Nmodes; i++)
-		inputFile << "        q_" << std::setfill('0') << std::setw(3) << i + 1
-				  << "  eigenf"
-				  << "  Eq_" << std::setfill('0') << std::setw(3) << i + 1
-				  << "  pop = 1\n";
+		if (isPresent.at(i))
+			inputFile << "        q_" << std::setfill('0') << std::setw(3) << i + 1
+					  << "  eigenf"
+					  << "  Eq_" << std::setfill('0') << std::setw(3) << i + 1
+					  << "  pop = 1\n";
 	inputFile << "    end-build\n";
 	inputFile << "end-init_wf-section\n\n";
 	inputFile << "end-input\n\n";
@@ -492,62 +555,63 @@ int main(int argc, char *argv[])
 	operatorFile << "    end-title\n";
 	operatorFile << "end-op_define-section\n\n";
 
+
 	/*
 	 * The parameter section
 	 */
 	operatorFile << "parameter-section\n";
 	// the masses
 	for (int i = 0; i < Nmodes; i++)
-		operatorFile << "    mass_q_" << std::setfill('0') << std::setw(3) << i + 1
-					 << "  =  1.0\n";
+		if (isPresent.at(i))
+			operatorFile << "    mass_q_" << std::setfill('0') << std::setw(3) << i + 1
+						 << "  =  1.0\n";
 	// the ground state force constants
 	for (int i = 0; i < Nmodes; i++)
-	{
-		operatorFile << "    f1_" << std::setfill('0') << std::setw(3) << i + 1 << "      = ";
-		WriteFortranNumber(operatorFile, double(f1(i)));
-		operatorFile << std::endl;
-	}
-	// the excited state force constants
-	for (int i = 0; i < Nmodes; i++)
-	{
-		operatorFile << "    f2_" << std::setfill('0') << std::setw(3) << i + 1 << "      = ";
-		WriteFortranNumber(operatorFile, double(f2(i)));
-		operatorFile << std::endl;
-	}
+		if (isPresent.at(i))
+		{
+			operatorFile << "    f1_" << std::setfill('0') << std::setw(3) << i + 1 << "      = ";
+			WriteFortranNumber(operatorFile, double(f1(i)));
+			operatorFile << std::endl;
+		}
 	// the new effective excited state force constants
 	for (int i = 0; i < Nmodes; i++)
-	{
-		operatorFile << "    fp_" << std::setfill('0') << std::setw(3) << i + 1 << "      = ";
-		WriteFortranNumber(operatorFile, double(fp(i)));
-		operatorFile << std::endl;
-	}
+		if (isPresent.at(i))
+		{
+			operatorFile << "    fp_" << std::setfill('0') << std::setw(3) << i + 1 << "      = ";
+			WriteFortranNumber(operatorFile, double(fp(i)));
+			operatorFile << std::endl;
+		}
 	// the couplings
 	for (int i = 0; i < Nmodes; i++)
 		for (int j = i + 1; j < Nmodes; j++)
-		{
-			operatorFile << "    phi_" << std::setfill('0') << std::setw(3) << i + 1
-						 << "_" << std::setfill('0') << std::setw(3) << j + 1 << " = ";
-			WriteFortranNumber(operatorFile, double(phi(i,j)));
-			operatorFile << std::endl;
-		}
+			if (isPresent.at(i) && isPresent.at(j))
+			{
+				operatorFile << "    phi_" << std::setfill('0') << std::setw(3) << i + 1
+						<< "_" << std::setfill('0') << std::setw(3) << j + 1 << " = ";
+				WriteFortranNumber(operatorFile, double(phi(i,j)));
+				operatorFile << std::endl;
+			}
 	// the first-order coefficients (shifts)
 	for (int i = 0; i < Nmodes; i++)
-	{
-		operatorFile << "    kappa_" << std::setfill('0') << std::setw(3) << i + 1 << "   = ";
-		WriteFortranNumber(operatorFile, double(kappa(i)));
-		operatorFile << std::endl;
-	}
+		if (isPresent.at(i))
+		{
+			operatorFile << "    kappa_" << std::setfill('0') << std::setw(3) << i + 1 << "   = ";
+			WriteFortranNumber(operatorFile, double(kappa(i)));
+			operatorFile << std::endl;
+		}
 	// the energy offsets
 	for (int i = 0; i < Nmodes; i++)
-	{
-		operatorFile << "    d_" << std::setfill('0') << std::setw(3) << i + 1 << "       = ";
-		WriteFortranNumber(operatorFile, double(d(i)));
-		operatorFile << std::endl;
-	}
+		if (isPresent.at(i))
+		{
+			operatorFile << "    d_" << std::setfill('0') << std::setw(3) << i + 1 << "       = ";
+			WriteFortranNumber(operatorFile, double(d(i)));
+			operatorFile << std::endl;
+		}
 	// the electronic offset minus the ground state ZPE
 	double zpe1 = 0.0;
 	for (int i = 0; i < Nmodes; i++)
-		zpe1 += 0.5 * sqrt(double(f1(i)));
+		if (isPresent.at(i))
+			zpe1 += 0.5 * sqrt(double(f1(i)));
 	operatorFile << "    dE          = ";
 	WriteFortranNumber(operatorFile, deltaE - zpe1);
 	operatorFile << "\nend-parameter-section\n\n";
@@ -556,29 +620,29 @@ int main(int argc, char *argv[])
 	 * The hamiltonian section
 	 */
 	operatorFile << "hamiltonian-section";
-	for (int i = 0; i < Nmodes; i++)
+	for (int i = 0; i < Npresent; i++)
 	{
 		if (i % 8 == 0)
 			operatorFile << std::endl << "modes";
-		operatorFile << " | q_" << std::setfill('0') << std::setw(3) << i + 1;
+		operatorFile << " | q_" << std::setfill('0') << std::setw(3) << presentModes.at(i) + 1;
 	}
 	operatorFile << std::endl;
-	for (int i = 0; i < Nmodes; i++)
+	for (int i = 0; i < Npresent; i++)
 		operatorFile << "1.0         |" << i + 1 << " KE\n";
-	for (int i = 0; i < Nmodes; i++)
-		operatorFile << "0.5*fp_" << std::setfill('0') << std::setw(3) << i + 1
+	for (int i = 0; i < Npresent; i++)
+			operatorFile << "0.5*fp_" << std::setfill('0') << std::setw(3) << presentModes.at(i) + 1
 					 << "  |" << i + 1 << " q^2\n";
-	for (int i = 0; i < Nmodes; i++)
-		for (int j = i + 1; j < Nmodes; j++)
-			operatorFile << "phi_" << std::setfill('0') << std::setw(3) << i + 1
-						 << "_" << std::setfill('0') << std::setw(3) << j + 1
-						 << " |" << i + 1 << " q"
-						 << " |" << j + 1 << " q\n";
-	for (int i = 0; i < Nmodes; i++)
-		operatorFile << "kappa_" << std::setfill('0') << std::setw(3) << i + 1
-					 << "   |" << i + 1 << " q\n";
-	for (int i = 0; i < Nmodes; i++)
-			operatorFile << "d_" << std::setfill('0') << std::setw(3) << i + 1
+	for (int i = 0; i < Npresent; i++)
+		for (int j = i + 1; j < Npresent; j++)
+				operatorFile << "phi_" << std::setfill('0') << std::setw(3) << presentModes.at(i) + 1
+							 << "_" << std::setfill('0') << std::setw(3) << presentModes.at(j) + 1
+							 << " |" << i + 1 << " q"
+							 << " |" << j + 1 << " q\n";
+	for (int i = 0; i < Npresent; i++)
+			operatorFile << "kappa_" << std::setfill('0') << std::setw(3) << presentModes.at(i) + 1
+						 << "   |" << i + 1 << " q\n";
+	for (int i = 0; i < Npresent; i++)
+			operatorFile << "d_" << std::setfill('0') << std::setw(3) << presentModes.at(i) + 1
 						 << "       |" << i + 1 << " 1\n";
 	operatorFile << "dE          |1 1\n";
 	operatorFile << "end-hamiltonian-section\n\n";
@@ -587,14 +651,15 @@ int main(int argc, char *argv[])
 	 * One-dimensional Hamiltonians for the ground state normal modes
 	 */
 	for (int i = 0; i < Nmodes; i++)
-	{
-		operatorFile << "hamiltonian-section_Eq_" << std::setfill('0') << std::setw(3) << i + 1 << std::endl;
-		operatorFile << "usediag\n";
-		operatorFile << "modes      | q_" << std::setfill('0') << std::setw(3) << i + 1 << std::endl;
-		operatorFile << "1.0        |1 KE\n";
-		operatorFile << "0.5*f1_" << std::setfill('0') << std::setw(3) << i + 1 << " |1 q^2\n";
-		operatorFile << "end-hamiltonian-section\n\n";
-	}
+		if (isPresent.at(i))
+		{
+			operatorFile << "hamiltonian-section_Eq_" << std::setfill('0') << std::setw(3) << i + 1 << std::endl;
+			operatorFile << "usediag\n";
+			operatorFile << "modes      | q_" << std::setfill('0') << std::setw(3) << i + 1 << std::endl;
+			operatorFile << "1.0        |1 KE\n";
+			operatorFile << "0.5*f1_" << std::setfill('0') << std::setw(3) << i + 1 << " |1 q^2\n";
+			operatorFile << "end-hamiltonian-section\n\n";
+		}
 	operatorFile << "end-operator\n";
 
 	return 0;
