@@ -29,8 +29,10 @@ import time
 # some global variables
 #
 mctdhExe = "/home/jvcosel/mctdh85.4/bin/binary/x86_64/mctdh85"
+rdgpopExe = "/home/jvcosel/mctdh85.4/bin/binary/x86_64/rdgpop85"
 initInputName = sys.argv[1]
 natPopThres = float(sys.argv[2])
+gPopThres = float(sys.argv[3])
 
 
 #
@@ -79,6 +81,37 @@ def analNatPop(nameDir):
 
     return sortedList
 
+
+def analGpop(nameDir):
+
+    # read the grid population:
+    gridPopFile = nameDir + "/gridpop"
+    rdgpopCommand = [rdgpopExe, "-f", gridPopFile, "0"]
+    stdOut = subprocess.check_output(rdgpopCommand)
+    popRawData = stdOut.split('\n')
+
+    # find the line where the actual data starts:
+    startLine = 0
+    while not "Maximal values" in popRawData[startLine]:
+        startLine += 1
+    startLine += 2
+
+    # read the grid populations:
+    popData = []
+    for i in range(startLine, len(popRawData), 1):
+        temp = []
+        try:
+            temp.append(float(popRawData[i].split()[2]))
+            temp.append(float(popRawData[i].split()[3]))
+            temp.append(float(popRawData[i].split()[5]))
+            popData.append(temp)
+        except (ValueError, IndexError):
+            break
+
+    return popData
+
+
+
 def getCurrentTime(nameDir):
     speedFileName = nameDir + "/speed"
 
@@ -120,11 +153,13 @@ if __name__ == '__main__':
         currentInputFile.write(item)
     currentInputFile.close()
 
-    # determine the start of the ML basis section:
+    # determine the start of the ML basis section and the pbasis section:
     for i in range(len(currentInputData)):
-        if ("mlbasis-section" in currentInputData[i]):
+        if (currentInputData[i].startswith("mlbasis-section")):
             mlStart = i
-            break
+        if (currentInputData[i].startswith("pbasis-section")):
+            primStart = i
+    primStart += 1
 
     # determine the length of the propagation:
     tfinal = 0.0
@@ -154,8 +189,9 @@ if __name__ == '__main__':
         # check periodically, if we have violated the convergence criterion:
         while True:
 
-            # analyze the natural populations:
+            # analyze the populations:
             currentPopList = analNatPop(currentNameDir)
+            gPopList = analGpop(currentNameDir)
             currentTime = getCurrentTime(currentNameDir)
 
             # determine the waiting time: twait = 10' + (110'/tfinal) * t
@@ -163,7 +199,7 @@ if __name__ == '__main__':
             print '   {0:.3f}           {1:.5f}               {2:5d}'.format(currentTime, currentPopList[0][3], waitTime)
 
             violated = False
-            if (currentPopList[0][3] > natPopThres):
+            if (currentPopList[0][3] > natPopThres or max(max(gPopList)) > gPopThres):
                 violated = True
 
             # check if the convergence criterion has been violated and stop the calculation:
@@ -187,6 +223,8 @@ if __name__ == '__main__':
         else:
             # create a new and improved input file:
             newInputData = currentInputData
+
+            # first, take care of the SPF basis:
             for i in range(len(currentPopList)):
                 if (currentPopList[i][3] > natPopThres):
                     currLNr = mlStart + int(currentPopList[i][1][5:])
@@ -205,6 +243,42 @@ if __name__ == '__main__':
                         else:
                             newInputData[currLNr] += " " + str(int(currSPFlist[j]))
                     newInputData[currLNr] += "\n"
+
+            # now do the primitive basis:
+            for i in range(len(gPopList)):
+                currLNr = primStart + i
+                currLn = currentInputData[currLNr]
+                currLnData = currLn.split()
+                gridStep = (float(currLnData[5]) - float(currLnData[4])) / float(currLnData[2])
+                newPBline = "    q_" + str(i + 1).zfill(3) + "  ho   "
+
+                if (gPopList[i][2] > gPopThres):    # basis end
+                    newPBline += str(int(currLnData[2]) + 1)
+                elif (gPopList[i][2] > 10.0 * gPopThres):
+                    newPBline += str(int(currLnData[2]) + 2)
+                else:
+                    newPBline += str(int(currLnData[2]))
+
+                newPBline += "  xi-xf    "
+
+                if (gPopList[i][0] > gPopThres):    # grid begin
+                    newPBline += "%.1f"%(float(currLnData[4]) - gridStep / 2.0)
+                elif (gPopList[i][0] > 10.0 * gPopThres):
+                    newPBline += "%.1f"%(float(currLnData[4]) - gridStep)
+                else:
+                    newPBline += "%.1f"%(float(currLnData[4]))
+
+                newPBline += "   "
+
+                if (gPopList[i][1] > gPopThres):    # grid end
+                    newPBline += "%.1f"%(float(currLnData[5]) + gridStep / 2.0)
+                elif (gPopList[i][1] > 10.0 * gPopThres):
+                    newPBline += "%.1f"%(float(currLnData[5]) + gridStep)
+                else:
+                    newPBline += "%.1f"%(float(currLnData[5]))
+
+                newPBline += "\n"
+                newInputData[currLNr] = newPBline
 
             currentNumber = int(currentNameDir[-3:])
             newNumber = currentNumber + 1
