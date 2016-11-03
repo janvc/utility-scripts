@@ -114,11 +114,12 @@ int main(int argc, char *argv[])
 	}
 
 	// transform the frequency axis to angular frequency in eV
-	// and scale the spectrum with the square root of the number of points:
+    // and scale the spectrum with the square root of the number of points
+    // and apply the frequency-dependent prefactor to the intensity:
 	for (int i = 0; i < 2 * N - 1; i++)
 	{
-		freq[i] *= 2.0 * M_PI * Eh2eV;
-		spec[i] /= std::sqrt(double(2 * N - 1));
+        spec[i] *= freq[i] / std::sqrt(double(2 * N - 1));
+        freq[i] *= 2.0 * M_PI * Eh2eV;
 	}
 
 
