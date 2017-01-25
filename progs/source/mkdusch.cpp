@@ -129,9 +129,9 @@ int main(int argc, char *argv[])
 	logFile << std::endl;
 
 	logFile << "Ground state cartesian Hessian in [Eh / bohr**2]:\n";
-	WriteSymmGaussMatrixToFile(logFile, GState.Fcart());
+    Utils::WriteSymmGaussMatrixToFile(logFile, GState.Fcart());
 	logFile << "\nExcited state cartesian Hessian in [Eh / bohr**2]:\n";
-	WriteSymmGaussMatrixToFile(logFile, EState.Fcart());
+    Utils::WriteSymmGaussMatrixToFile(logFile, EState.Fcart());
 
 
 	logFile << std::endl;
@@ -150,13 +150,13 @@ int main(int argc, char *argv[])
 
 	logFile << std::endl;
 	logFile << "Ground state mass-weighted normal modes in [a0 * sqrt(me)]:\n";
-	WriteGaussMatrixToFile(logFile, GState.Lmwc());
+    Utils::WriteGaussMatrixToFile(logFile, GState.Lmwc());
 	logFile << "\nExcited state mass-weighted normal modes in [a0 * sqrt(me)]:\n";
-	WriteGaussMatrixToFile(logFile, EState.Lmwc());
+    Utils::WriteGaussMatrixToFile(logFile, EState.Lmwc());
 	logFile << "\nMetric of the mass-weighted ground state normal modes:\n";
-	WriteSymmGaussMatrixToFile(logFile, GState.Lmwc().transpose() * GState.Lmwc());
+    Utils::WriteSymmGaussMatrixToFile(logFile, GState.Lmwc().transpose() * GState.Lmwc());
 	logFile << "\nMetric of the mass-weighted excited state normal modes:\n";
-	WriteSymmGaussMatrixToFile(logFile, EState.Lmwc().transpose() * EState.Lmwc());
+    Utils::WriteSymmGaussMatrixToFile(logFile, EState.Lmwc().transpose() * EState.Lmwc());
 	logFile << std::endl;
 
 
@@ -171,17 +171,17 @@ int main(int argc, char *argv[])
 	Eigen::MatrixXd NMOe = SVDe.matrixU() * SVDe.matrixV().transpose();
 
 	logFile << "Ground state mass-weighted normal modes after Loewdin orthogonalization in [a0 * sqrt(me)]:\n";
-	WriteGaussMatrixToFile(logFile, NMOg);
+    Utils::WriteGaussMatrixToFile(logFile, NMOg);
 	logFile << "\nExcited state mass-weighted normal modes after Loewdin orthogonalization in [a0 * sqrt(me)]:\n";
-	WriteGaussMatrixToFile(logFile, NMOe);
+    Utils::WriteGaussMatrixToFile(logFile, NMOe);
 	logFile << "\nMetric of the orthogonalized ground state mass-weighted normal modes:\n";
-	WriteSymmGaussMatrixToFile(logFile, NMOg.transpose() * NMOg);
+    Utils::WriteSymmGaussMatrixToFile(logFile, NMOg.transpose() * NMOg);
 	logFile << "\nMetric of the orthogonalized excited state mass-weighted normal modes:\n";
-	WriteSymmGaussMatrixToFile(logFile, NMOe.transpose() * NMOe);
+    Utils::WriteSymmGaussMatrixToFile(logFile, NMOe.transpose() * NMOe);
 	logFile << "\nDifference between the original and orthogonalized ground state normal modes:\n";
-	WriteGaussMatrixToFile(logFile, NMOg - NMg);
+    Utils::WriteGaussMatrixToFile(logFile, NMOg - NMg);
 	logFile << "\nDifference between the original and orthogonalized excited state normal modes:\n";
-	WriteGaussMatrixToFile(logFile, NMOe - NMe);
+    Utils::WriteGaussMatrixToFile(logFile, NMOe - NMe);
 	logFile << std::endl;
 
 
@@ -221,8 +221,8 @@ int main(int argc, char *argv[])
 		QSe(3 * i + 2) = XSe(3 * i + 2) * sqrt(double(masses(i)));
 	}
 
-	COMg = calc_com(XSg, masses);
-	COMe = calc_com(XSe, masses);
+    COMg = Utils::calc_com(XSg, masses);
+    COMe = Utils::calc_com(XSe, masses);
 
 	logFile << "\nCenter of mass of the ground and excited state after shifting:\n";
 	logFile << "     ground state    excited state\n";
@@ -246,7 +246,7 @@ int main(int argc, char *argv[])
 				corr(i,j) += XSg(3*k+i) * XSe(3*k+j);
 
 	logFile << "the cross-correlation matrix between the ground and excited state:\n";
-	WriteGaussMatrixToFile(logFile, corr);
+    Utils::WriteGaussMatrixToFile(logFile, corr);
 	logFile << "\nDeterminant of the correlation matrix:    " << corr.determinant() << std::endl << std::endl;
 
 
@@ -293,17 +293,17 @@ int main(int argc, char *argv[])
 			BigRotMat.block(3*i, 3*i, 3, 3) = rotmat;
 
 	logFile << "Quaternion matrix resulting from the correlation matrix:\n";
-	WriteSymmGaussMatrixToFile(logFile, F);
+    Utils::WriteSymmGaussMatrixToFile(logFile, F);
 	logFile << "\nEigenvalues of the Quaternion matrix:\n";
-	WriteVectorToFile(logFile, Feig.eigenvalues(), digits, clean, threshold);
+    Utils::WriteVectorToFile(logFile, Feig.eigenvalues(), digits, clean, threshold);
 	logFile << "\nEigenvectors of the Quaternion matrix:\n";
-	WriteGaussMatrixToFile(logFile, Feig.eigenvectors());
+    Utils::WriteGaussMatrixToFile(logFile, Feig.eigenvectors());
 	logFile << "\nThe best-rotation Eigen-Quaternion:\n";
-	WriteVectorToFile(logFile, lQuart, digits, clean, threshold);
+    Utils::WriteVectorToFile(logFile, lQuart, digits, clean, threshold);
 	logFile << "\nThe optimal rotation matrix:\n";
-	WriteGaussMatrixToFile(logFile, rotmat);
+    Utils::WriteGaussMatrixToFile(logFile, rotmat);
 	logFile << "The big rotation matrix:\n";
-	WriteGaussMatrixToFile(logFile, BigRotMat);
+    Utils::WriteGaussMatrixToFile(logFile, BigRotMat);
 
 	// rotate the structures
 	Eigen::VectorXd XRg(BigRotMat * XSg);
@@ -328,9 +328,9 @@ int main(int argc, char *argv[])
 		Eigen::MatrixXd NMRg(BigRotMat * NMOg);
 
 		logFile << "\nthe rotated ground state mass-weighted normal modes:\n";
-		WriteGaussMatrixToFile(logFile, NMRg);
+        Utils::WriteGaussMatrixToFile(logFile, NMRg);
 		logFile << "and their metric:\n";
-		WriteSymmGaussMatrixToFile(logFile, NMRg.transpose() * NMRg);
+        Utils::WriteSymmGaussMatrixToFile(logFile, NMRg.transpose() * NMRg);
 
 		J = NMOe.transpose() * NMRg;
 		K = NMOe.transpose() * (QRg - QSe);
@@ -344,15 +344,15 @@ int main(int argc, char *argv[])
 	}
 
 	logFile << "\nDifference in equilibrium coordinates:\n";
-	WriteVectorToFile(logFile, QSg - QSe, digits, clean, threshold);
+    Utils::WriteVectorToFile(logFile, QSg - QSe, digits, clean, threshold);
 
 	logFile << "\nDuschinsky Matrix J:\n";
-	WriteGaussMatrixToFile(logFile, J);
+    Utils::WriteGaussMatrixToFile(logFile, J);
 	logFile << "\nDisplacement Vector K:\n";
 	WriteVectorToFile(logFile, K, digits, clean, threshold);
 
 	logFile << "\nMetric of the Duschinsky matrix:\n";
-	WriteSymmGaussMatrixToFile(logFile, J.transpose() * J);
+    Utils::WriteSymmGaussMatrixToFile(logFile, J.transpose() * J);
 	logFile << "\nDeterminant of the Duschinsky matrix:     " << J.determinant() << std::endl;
 
 	if (noJ)
@@ -406,7 +406,7 @@ int main(int argc, char *argv[])
 		d(i) = 0.5 * f2(i) * K(i) * K(i);
 
 	logFile << "\nExcited state effective force constant matrix:\n";
-	WriteSymmGaussMatrixToFile(logFile, phiFull);
+    Utils::WriteSymmGaussMatrixToFile(logFile, phiFull);
 
 	logFile << "\nShift coefficients:\n";
 	WriteVectorToFile(logFile, kappa, digits, clean, threshold);
@@ -570,7 +570,7 @@ int main(int argc, char *argv[])
 		if (isPresent.at(i))
 		{
 			operatorFile << "    f1_" << std::setfill('0') << std::setw(3) << i + 1 << "      = ";
-			WriteFortranNumber(operatorFile, double(f1(i)));
+            Utils::WriteFortranNumber(operatorFile, double(f1(i)));
 			operatorFile << std::endl;
 		}
 	// the new effective excited state force constants
@@ -578,7 +578,7 @@ int main(int argc, char *argv[])
 		if (isPresent.at(i))
 		{
 			operatorFile << "    fp_" << std::setfill('0') << std::setw(3) << i + 1 << "      = ";
-			WriteFortranNumber(operatorFile, double(fp(i)));
+            Utils::WriteFortranNumber(operatorFile, double(fp(i)));
 			operatorFile << std::endl;
 		}
 	// the couplings
@@ -588,7 +588,7 @@ int main(int argc, char *argv[])
 			{
 				operatorFile << "    phi_" << std::setfill('0') << std::setw(3) << i + 1
 						<< "_" << std::setfill('0') << std::setw(3) << j + 1 << " = ";
-				WriteFortranNumber(operatorFile, double(phi(i,j)));
+                Utils::WriteFortranNumber(operatorFile, double(phi(i,j)));
 				operatorFile << std::endl;
 			}
 	// the first-order coefficients (shifts)
@@ -596,7 +596,7 @@ int main(int argc, char *argv[])
 		if (isPresent.at(i))
 		{
 			operatorFile << "    kappa_" << std::setfill('0') << std::setw(3) << i + 1 << "   = ";
-			WriteFortranNumber(operatorFile, double(kappa(i)));
+            Utils::WriteFortranNumber(operatorFile, double(kappa(i)));
 			operatorFile << std::endl;
 		}
 	// the energy offsets
@@ -604,7 +604,7 @@ int main(int argc, char *argv[])
 		if (isPresent.at(i))
 		{
 			operatorFile << "    d_" << std::setfill('0') << std::setw(3) << i + 1 << "       = ";
-			WriteFortranNumber(operatorFile, double(d(i)));
+            Utils::WriteFortranNumber(operatorFile, double(d(i)));
 			operatorFile << std::endl;
 		}
 	// the electronic offset minus the ground state ZPE
@@ -613,7 +613,7 @@ int main(int argc, char *argv[])
 		if (isPresent.at(i))
 			zpe1 += 0.5 * sqrt(double(f1(i)));
 	operatorFile << "    dE          = ";
-	WriteFortranNumber(operatorFile, deltaE - zpe1);
+    Utils::WriteFortranNumber(operatorFile, deltaE - zpeGinc + Emin);
 	operatorFile << "\nend-parameter-section\n\n";
 
 	/*

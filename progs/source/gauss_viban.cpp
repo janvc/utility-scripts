@@ -72,22 +72,22 @@ int main(int argc, char *argv[])
 	std::cout << "Number of normal modes: " << std::setw(6) << vibAn.Nmodes() << std::endl << std::endl;
 
 	std::cout << "atomic coordinates in bohr:\n";
-	WriteVector(vibAn.X(), digits, clean, threshold);
+    Utils::WriteVector(vibAn.X(), digits, clean, threshold);
 
 	std::cout << std::endl;
 
 	vibAn.prtMinGeo();
 
 	std::cout << "\natomic masses in u:\n";
-	WriteVector(vibAn.masses(), digits, clean, threshold);
+    Utils::WriteVector(vibAn.masses(), digits, clean, threshold);
 
 	std::cout << "\ntotal mass in au: " << vibAn.totalMass() << std::endl << std::endl;
 
 	std::cout << "non-mass-weighted cartesian hessian\n";
-	WriteSymmGaussMatrix(vibAn.Fcart());
+    Utils::WriteSymmGaussMatrix(vibAn.Fcart());
 
 	std::cout << "\nmass-weighted cartesian hessian\n";
-	WriteSymmGaussMatrix(vibAn.Fmwc());
+    Utils::WriteSymmGaussMatrix(vibAn.Fmwc());
 
 	std::cout << "\neigenvalues of the mass-weighted cartesian hessian (au and cm-1):\n";
 	for (int i = 0; i < vibAn.Ncoords(); i++)
@@ -97,28 +97,28 @@ int main(int argc, char *argv[])
 				  << "  " << std::fixed << std::setw(10) << double(vibAn.mwcFrq()(i)) << std::endl;
 
 	std::cout << "\ncenter of mass in bohr:\n";
-	WriteVector(vibAn.com(), digits, clean, threshold);
+    Utils::WriteVector(vibAn.com(), digits, clean, threshold);
 
 	std::cout << "\ninertia tensor:\n";
-	WriteSymmGaussMatrix(vibAn.inert());
+    Utils::WriteSymmGaussMatrix(vibAn.inert());
 
 	std::cout << "\nmoments of inertia:\n";
-	WriteVector(vibAn.moments(), digits, clean, threshold);
+    Utils::WriteVector(vibAn.moments(), digits, clean, threshold);
 
 	std::cout << "\nprincipal axes:\n";
-	WriteGaussMatrix(vibAn.prinAxes());
+    Utils::WriteGaussMatrix(vibAn.prinAxes());
 
 	std::cout << "\nmetric of the principal axes:\n";
-	WriteSymmGaussMatrix(vibAn.prinAxes().transpose() * vibAn.prinAxes());
+    Utils::WriteSymmGaussMatrix(vibAn.prinAxes().transpose() * vibAn.prinAxes());
 
 	std::cout << "\nThe D matrix:\n";
-	WriteGaussMatrix(vibAn.D());
+    Utils::WriteGaussMatrix(vibAn.D());
 
 	std::cout << "\nmetric of D matrix:\n";
-	WriteSymmGaussMatrix(vibAn.D().transpose() * vibAn.D());
+    Utils::WriteSymmGaussMatrix(vibAn.D().transpose() * vibAn.D());
 
 	std::cout << "\nThe Nvib x Nvib submatrix of the internal Hessian, according to eq. (6):\n";
-	WriteSymmGaussMatrix(vibAn.Fint());
+    Utils::WriteSymmGaussMatrix(vibAn.Fint());
 
 	std::cout << "\neigenvalues of the internal hessian (au and cm-1):\n";
 	for (int i = 0; i < vibAn.Nmodes(); i++)
@@ -128,29 +128,29 @@ int main(int argc, char *argv[])
 				  << "  " << std::fixed << std::setw(10) << double(vibAn.intFrq()(i)) << std::endl;
 
 	std::cout << "\neigenvectors of the internal Hessian (internal displacements):\n";
-	WriteGaussMatrix(vibAn.Lint());
+    Utils::WriteGaussMatrix(vibAn.Lint());
 
 	std::cout << "\nmetric of the eigenvectors:\n";
-	WriteSymmGaussMatrix(vibAn.Lint().transpose() * vibAn.Lint());
+    Utils::WriteSymmGaussMatrix(vibAn.Lint().transpose() * vibAn.Lint());
 
 	std::cout << "\nmass-weighted cartesian displacements:\n";
-	WriteGaussMatrix(vibAn.Lmwc());
+    Utils::WriteGaussMatrix(vibAn.Lmwc());
 
 	std::cout << "\nmetric of mass-weighted cartesian displacements:\n";
-	WriteSymmGaussMatrix(vibAn.Lmwc().transpose() * vibAn.Lmwc());
+    Utils::WriteSymmGaussMatrix(vibAn.Lmwc().transpose() * vibAn.Lmwc());
 
 	std::cout << "\ncartesian displacements:\n";
-	WriteGaussMatrix(vibAn.Lcart());
+    Utils::WriteGaussMatrix(vibAn.Lcart());
 
 	std::cout << std::endl;
 
 	vibAn.prtMinModes();
 
 	std::cout << "\nmetric of the cartesian displacements:\n";
-	WriteSymmGaussMatrix(vibAn.Lcart().transpose() * vibAn.Lcart());
+    Utils::WriteSymmGaussMatrix(vibAn.Lcart().transpose() * vibAn.Lcart());
 
 	std::cout << "\nreduced masses of the normal modes:\n";
-	WriteVector(vibAn.mu(), digits, clean, threshold);
+    Utils::WriteVector(vibAn.mu(), digits, clean, threshold);
 
 	return 0;
 }

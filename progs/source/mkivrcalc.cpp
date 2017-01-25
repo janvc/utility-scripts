@@ -352,19 +352,19 @@ int main(int argc, char *argv[])
 		for (int i = 0; i < Nmodes; i++)
 		{
 			SpecOper << "    f1_" << std::setfill('0') << std::setw(3) << i + 1 << "      = ";
-			WriteFortranNumber(SpecOper, double(f1(i)));
+            Utils::WriteFortranNumber(SpecOper, double(f1(i)));
 			SpecOper << std::endl;
 		}
 		for (int i = 0; i < Nmodes; i++)
 		{
 			SpecOper << "    f2_" << std::setfill('0') << std::setw(3) << i + 1 << "      = ";
-			WriteFortranNumber(SpecOper, double(f2(i)));
+            Utils::WriteFortranNumber(SpecOper, double(f2(i)));
 			SpecOper << std::endl;
 		}
 		for (int i = 0; i < Nmodes; i++)
 		{
 			SpecOper << "    fp_" << std::setfill('0') << std::setw(3) << i + 1 << "      = ";
-			WriteFortranNumber(SpecOper, double(fp(i)));
+            Utils::WriteFortranNumber(SpecOper, double(fp(i)));
 			SpecOper << std::endl;
 		}
 		for (int i = 0; i < Nmodes; i++)
@@ -372,28 +372,28 @@ int main(int argc, char *argv[])
 			{
 				SpecOper << "    phi_" << std::setfill('0') << std::setw(3) << i + 1
 							 << "_" << std::setfill('0') << std::setw(3) << j + 1 << " = ";
-				WriteFortranNumber(SpecOper, double(duschRot(i,j)));
+                Utils::WriteFortranNumber(SpecOper, double(duschRot(i,j)));
 				SpecOper << std::endl;
 			}
 		// the first-order coefficients (shifts)
 		for (int i = 0; i < Nmodes; i++)
 		{
 			SpecOper << "    kappa_" << std::setfill('0') << std::setw(3) << i + 1 << "   = ";
-			WriteFortranNumber(SpecOper, double(kappa(i)));
+            Utils::WriteFortranNumber(SpecOper, double(kappa(i)));
 			SpecOper << std::endl;
 		}
 		// the energy offsets
 		for (int i = 0; i < Nmodes; i++)
 		{
 			SpecOper << "    d_" << std::setfill('0') << std::setw(3) << i + 1 << "       = ";
-			WriteFortranNumber(SpecOper, double(d(i)));
+            Utils::WriteFortranNumber(SpecOper, double(d(i)));
 			SpecOper << std::endl;
 		}
 		double zpe1 = 0.0;
 		for (int i = 0; i < Nmodes; i++)
 			zpe1 += 0.5 * sqrt(double(f1(i)));
 		SpecOper << "    dE          = ";
-		WriteFortranNumber(SpecOper, deltaE - zpe1);
+        Utils::WriteFortranNumber(SpecOper, deltaE - zpe1);
 		SpecOper << "\nend-parameter-section\n\n";
 
 		SpecOper << "hamiltonian-section";
@@ -500,7 +500,7 @@ int main(int argc, char *argv[])
 	for (int i = 0; i < Nmodes; i++)
 	{
 		IVRoper << "    f_" << std::setfill('0') << std::setw(3) << i + 1 << "           = ";
-		WriteFortranNumber(IVRoper, double(f1(i)));
+        Utils::WriteFortranNumber(IVRoper, double(f1(i)));
 		IVRoper << std::endl;
 	}
 	IVRoper << "    # cubic couplings:\n";
@@ -514,7 +514,7 @@ int main(int argc, char *argv[])
 								   << "_" << std::setfill('0') << std::setw(3) << j + 1
 								   << "_" << std::setfill('0') << std::setw(3) << k + 1
 								   << " = ";
-					WriteFortranNumber(IVRoper, phi(i,j,k) / 6.0);
+                    Utils::WriteFortranNumber(IVRoper, phi(i,j,k) / 6.0);
 					IVRoper << std::endl;
 				}
 	IVRoper << "    # diagonal quartic force constants:\n";
@@ -523,7 +523,7 @@ int main(int argc, char *argv[])
 		if (std::abs(double(diagf(i))) >= deriv_thres)
 		{
 			IVRoper << "    fdia_" << std::setfill('0') << std::setw(3) << i + 1 << "        = ";
-			WriteFortranNumber(IVRoper, double(diagf(i)) / 24.0);
+            Utils::WriteFortranNumber(IVRoper, double(diagf(i)) / 24.0);
 			IVRoper << std::endl;
 		}
 	IVRoper << "end-parameter-section\n\n";

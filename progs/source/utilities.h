@@ -22,6 +22,9 @@
 #ifndef SOURCE_UTILITIES_H_
 #define SOURCE_UTILITIES_H_
 
+namespace Utils
+{
+
 void WriteMatrix(const Eigen::MatrixXd &mat, const int dig = 5, const bool clean = false, const double thres = 1.0e-10);
 void WriteMatrixToFile(std::ofstream &stream, const Eigen::MatrixXd &mat, const int dig = 5, const bool clean = false, const double thres = 1.0e-10);
 
@@ -38,5 +41,7 @@ void WriteFortranNumber(std::ofstream &stream, const double number);
 
 Eigen::Vector3d calc_com(Eigen::VectorXd x, Eigen::VectorXd m);
 Eigen::Matrix3d calc_inert(Eigen::VectorXd x, Eigen::VectorXd m);
+
+}
 
 #endif /* SOURCE_UTILITIES_H_ */

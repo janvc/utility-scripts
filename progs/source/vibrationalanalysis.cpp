@@ -384,7 +384,7 @@ void VibrationalAnalysis::createAnharmMCTDHoper(const std::string &baseName, con
 	for (int i = 0; i < m_Nmodes; i++)
 	{
 		operFile << "    f_" << std::setfill('0') << std::setw(3) << i + 1 << "           = ";
-		WriteFortranNumber(operFile, double(IntFrcCon(i)));
+        Utils::WriteFortranNumber(operFile, double(IntFrcCon(i)));
 		operFile << std::endl;
 	}
 	// write the third-order couplings:
@@ -399,7 +399,7 @@ void VibrationalAnalysis::createAnharmMCTDHoper(const std::string &baseName, con
 									<< "_" << std::setfill('0') << std::setw(3) << j + 1
 									<< "_" << std::setfill('0') << std::setw(3) << k + 1
 									<< " = ";
-					WriteFortranNumber(operFile, avgDerivs(i,j,k) / 6.0);
+                    Utils::WriteFortranNumber(operFile, avgDerivs(i,j,k) / 6.0);
 					operFile << std::endl;
 				}
 
@@ -410,7 +410,7 @@ void VibrationalAnalysis::createAnharmMCTDHoper(const std::string &baseName, con
 		if (std::abs(double(fourthDerivs(i))) >= thres)
 		{
 			operFile << "    fdia_" << std::setfill('0') << std::setw(3) << i + 1 << " = ";
-			WriteFortranNumber(operFile, double(fourthDerivs(i)) / 24.0);
+            Utils::WriteFortranNumber(operFile, double(fourthDerivs(i)) / 24.0);
 			operFile << std::endl;
 		}
 
@@ -503,7 +503,7 @@ void VibrationalAnalysis::calcKappa(GaussFchk &esFchk)
 
 	Eigen::VectorXd esGrad_nm = Lmwc_min.transpose() * esGrad_q;
 
-	WriteVector(esGrad_nm, 6, false);
+    Utils::WriteVector(esGrad_nm, 6, false);
 }
 
 void VibrationalAnalysis::prtMinGeo()
@@ -606,7 +606,7 @@ void VibrationalAnalysis::prtDiagHess()
 {
 	Eigen::MatrixXd diagHess = Lmwc_min.transpose() * Fmwc_min * Lmwc_min;
 
-	WriteMatrix(diagHess, 12, false);
+    Utils::WriteMatrix(diagHess, 12, false);
 }
 
 void VibrationalAnalysis::prtFreqs()

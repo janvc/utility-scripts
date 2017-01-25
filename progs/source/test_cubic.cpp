@@ -109,17 +109,17 @@ int main(int argc, char *argv[])
 
 
 	std::cout << "atomic masses in u:\n";
-	WriteVector(Masses, digits, clean, threshold);
+    Utils::WriteVector(Masses, digits, clean, threshold);
 
 	std::cout << "first 100 elements of the big data vector:\n";
-	WriteVector(derivData.segment(0, 100), digits, clean, threshold);
+    Utils::WriteVector(derivData.segment(0, 100), digits, clean, threshold);
 	std::cout << "original cartesian Hessian at the eq. geo.:\n";
-	WriteMatrix(origHess, digits, clean, threshold);
+    Utils::WriteMatrix(origHess, digits, clean, threshold);
 	std::cout << "first cartesian hessian\n";
-	WriteMatrix(firstHess, digits, clean, threshold);
+    Utils::WriteMatrix(firstHess, digits, clean, threshold);
 
 	std::cout << "mass-weighted first cartesian hessian\n";
-	WriteMatrix(mwHess, digits, clean, threshold);
+    Utils::WriteMatrix(mwHess, digits, clean, threshold);
 
 	std::cout << "eigenvalues of the mass-weighted original cartesian hessian (au and cm-1):\n";
 	for (int i = 0; i < Ncoords; i++)

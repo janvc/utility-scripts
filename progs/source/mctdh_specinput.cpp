@@ -172,21 +172,21 @@ int main(int argc, char *argv[])
 	logFile << "Electronic transition energy: " << dE << std::endl;
 	logFile << "Number of normal modes: " << Nmodes << std::endl;
 	logFile << "Ground state force constants:\n";
-	WriteVectorToFile(logFile, f1);
+    Utils::WriteVectorToFile(logFile, f1);
 	logFile << "Excited state force constants:\n";
-	WriteVectorToFile(logFile, f2);
+    Utils::WriteVectorToFile(logFile, f2);
 	logFile << "Ground state zero-point Energy: " << zpe1 << "Eh\n";
 	logFile << "Excited state zero-point Energy: " << zpe2 << "Eh\n";
 	logFile << "Original Displacement Vector from FCClasses:\n";
-	WriteVectorToFile(logFile, Korig);
+    Utils::WriteVectorToFile(logFile, Korig);
 	logFile << "Original Duschinsky Matrix from FCClasses:\n";
-	WriteMatrixToFile(logFile, Jorig);
+    Utils::WriteMatrixToFile(logFile, Jorig);
 	logFile << "Displacement Vector:\n";
-	WriteVectorToFile(logFile, K);
+    Utils::WriteVectorToFile(logFile, K);
 	logFile << "Duschinsky Matrix:\n";
-	WriteMatrixToFile(logFile, J, 3, true);
+    Utils::WriteMatrixToFile(logFile, J, 3, true);
 	logFile << "Metric of the Duschinsky Matrix:\n";
-	WriteMatrixToFile(logFile, J.transpose() * J, 3, true);
+    Utils::WriteMatrixToFile(logFile, J.transpose() * J, 3, true);
 	logFile << "Frobenius norm of the Duschinsky matrix: " << J.norm() << std::endl;
 	logFile << "Determinant of the Duschinsky matrix: " << J.determinant() << std::endl;
 
@@ -250,7 +250,7 @@ int main(int argc, char *argv[])
 	 * write the coupling matrix to the log file:
 	 */
 	logFile << "Coupling matrix phi with the force constants fp on the diagonal:\n";
-	WriteMatrixToFile(logFile, phiFull, 3, true);
+    Utils::WriteMatrixToFile(logFile, phiFull, 3, true);
 
 
 	/*
@@ -405,21 +405,21 @@ int main(int argc, char *argv[])
 	for (int i = 0; i < Nmodes; i++)
 	{
 		operatorFile << "    f1_" << std::setfill('0') << std::setw(3) << i + 1 << "      = ";
-		WriteFortranNumber(operatorFile, f1(i));
+        Utils::WriteFortranNumber(operatorFile, f1(i));
 		operatorFile << std::endl;
 	}
 	// the excited state force constants
 	for (int i = 0; i < Nmodes; i++)
 	{
 		operatorFile << "    f2_" << std::setfill('0') << std::setw(3) << i + 1 << "      = ";
-		WriteFortranNumber(operatorFile, f2(i));
+        Utils::WriteFortranNumber(operatorFile, f2(i));
 		operatorFile << std::endl;
 	}
 	// the new effective excited state force constants
 	for (int i = 0; i < Nmodes; i++)
 	{
 		operatorFile << "    fp_" << std::setfill('0') << std::setw(3) << i + 1 << "      = ";
-		WriteFortranNumber(operatorFile, fp(i));
+        Utils::WriteFortranNumber(operatorFile, fp(i));
 		operatorFile << std::endl;
 	}
 	// the couplings
@@ -428,26 +428,26 @@ int main(int argc, char *argv[])
 		{
 			operatorFile << "    phi_" << std::setfill('0') << std::setw(3) << i + 1
 						 << "_" << std::setfill('0') << std::setw(3) << j + 1 << " = ";
-			WriteFortranNumber(operatorFile, phi(i,j));
+            Utils::WriteFortranNumber(operatorFile, phi(i,j));
 			operatorFile << std::endl;
 		}
 	// the first-order coefficients (shifts)
 	for (int i = 0; i < Nmodes; i++)
 	{
 		operatorFile << "    kappa_" << std::setfill('0') << std::setw(3) << i + 1 << "   = ";
-		WriteFortranNumber(operatorFile, kappa(i));
+        Utils::WriteFortranNumber(operatorFile, kappa(i));
 		operatorFile << std::endl;
 	}
 	// the energy offsets
 	for (int i = 0; i < Nmodes; i++)
 	{
 		operatorFile << "    d_" << std::setfill('0') << std::setw(3) << i + 1 << "       = ";
-		WriteFortranNumber(operatorFile, d(i));
+        Utils::WriteFortranNumber(operatorFile, d(i));
 		operatorFile << std::endl;
 	}
 	// the electronic offset minus the ground state ZPE
 	operatorFile << "    dE          = ";
-	WriteFortranNumber(operatorFile, dE / Eh2eV - zpe1);
+    Utils::WriteFortranNumber(operatorFile, dE / Eh2eV - zpe1);
 	operatorFile << "\nend-parameter-section\n\n";
 
 	/*
@@ -501,7 +501,7 @@ int main(int argc, char *argv[])
 	 */
 	Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> phiSolv(phiFull);
 	logFile << "Eigenvalues of the full force constant / coupling matrix:\n";
-	WriteVectorToFile(logFile, phiSolv.eigenvalues());
+    Utils::WriteVectorToFile(logFile, phiSolv.eigenvalues());
 
 	/*
 	 * Solve the linear system of the full coupling matrix and the kappa vector
@@ -510,7 +510,7 @@ int main(int argc, char *argv[])
 	Eigen::ColPivHouseholderQR<Eigen::MatrixXd> phiLin(phiFull);
 	Eigen::VectorXd minima = phiLin.solve(-kappa);
 	logFile << "minimum coordinates\n";
-	WriteVectorToFile(logFile, minima);
+    Utils::WriteVectorToFile(logFile, minima);
 
 
 	/*

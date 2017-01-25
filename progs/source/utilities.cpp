@@ -28,6 +28,8 @@
 #include "utilities.h"
 #include "constants.h"
 
+namespace Utils
+{
 
 void WriteMatrix(const Eigen::MatrixXd &mat, const int dig, const bool clean, const double thres)
 {
@@ -346,4 +348,6 @@ Eigen::Matrix3d calc_inert(Eigen::VectorXd x, Eigen::VectorXd m)
 	inert(2,1) = inert(1,2);
 
 	return inert;
+}
+
 }
