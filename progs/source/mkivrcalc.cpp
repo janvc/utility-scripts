@@ -34,6 +34,7 @@ int main(int argc, char *argv[])
 	std::string gsFchkName, esFchkName, AnharmLogName, MCTDHbaseName;
 	double deriv_thres;
 	bool doExcitedState = false;
+    bool freqWeight = false;
 	namespace po = boost::program_options;
 	po::options_description desc("Allowed options");
 	desc.add_options()
@@ -43,6 +44,7 @@ int main(int argc, char *argv[])
 		("ahlog,l", po::value<std::string>(&AnharmLogName)->required(), "the anharmonic log file")
 		("mctdh,m", po::value<std::string>(&MCTDHbaseName)->required(), "the MCTDH base filename")
 		("thres,t", po::value<double>(&deriv_thres)->required(), "threshold for the anharmonic couplings")
+        ("fw,w", "use frequency weighted coordinates")
 	;
 	po::variables_map vm;
 	po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -53,6 +55,8 @@ int main(int argc, char *argv[])
 	}
 	if (vm.count("esfile"))
 		doExcitedState = true;
+    if (vm.count("fw"))
+        freqWeight = true;
 
 	po::notify(vm);
 
@@ -63,6 +67,12 @@ int main(int argc, char *argv[])
 	std::cout << "Basename for MCTDH files:     " << MCTDHbaseName << std::endl;
 	std::cout << "Threshold for 3rd/4th derivs: " << deriv_thres << std::endl << std::endl;
 
+    if (freqWeight)
+    {
+        std::cout << "---------------------------------------------------------------\n";
+        std::cout << "           WE ARE USING FREQUENCY-WEIGHTED UNITS!\n";
+        std::cout << "---------------------------------------------------------------\n";
+    }
 
 	std::ifstream gsFchkFile(gsFchkName, std::ifstream::in);
 	GaussFchk gsFchk(gsFchkFile);
@@ -76,9 +86,30 @@ int main(int argc, char *argv[])
 	int Natoms = GState.Natoms();
 	int Ncoords = GState.Ncoords();
 	int Nmodes = GState.Nmodes();
-	Eigen::VectorXd f1 = GState.intFC();
-	arma::Cube<double> phi = GState.thirdDerivs();
-	Eigen::VectorXd diagf = GState.diag4thDerivs();
+
+    Eigen::VectorXd f1(Nmodes);
+    arma::Cube<double> phi(Nmodes, Nmodes, Nmodes);
+    Eigen::VectorXd diagf(Nmodes);
+
+    if (freqWeight)
+        for (int i = 0; i < Nmodes; i++)
+        {
+            f1(i) = std::sqrt(double(GState.intFC()(i)));
+            diagf(i) = double(GState.diag4thDerivs()(i)) / double(GState.intFC()(i));
+
+            for (int j = i; j < Nmodes; j++)
+                for (int k = j; k < Nmodes; k++)
+                    phi(i,j,k) = GState.thirdDerivs()(i,j,k)
+                               / pow(double(GState.intFC()(i))
+                                   * double(GState.intFC()(j))
+                                   * double(GState.intFC()(k)), 0.25);
+        }
+    else
+    {
+        f1 = GState.intFC();
+        phi = GState.thirdDerivs();
+        diagf = GState.diag4thDerivs();
+    }
 
 
 	std::cout << "--------------------------------------------\n";
@@ -164,9 +195,20 @@ int main(int argc, char *argv[])
 
 	for (int i = 0; i < Nmodes; i++)
 	{
-		nBasis[i] = lrint(-0.7 * log(double(f1(i)))) + 6;
-		lowBound[i] = -7.5 / (sqrt(2.0) * pow(double(f1(i)), 0.25));
-		uppBound[i] =  7.5 / (sqrt(2.0) * pow(double(f1(i)), 0.25));
+//        nBasis[i] = lrint(-0.7* (freqWeight ? 2.0 : 1.0) * log(double(f1(i)))) + 6;
+        nBasis[i] = lrint(-1.4 * log(double(f1(i)))) + 6;
+//        lowBound[i] = -7.5 / (sqrt(2.0) * (freqWeight ? std::sqrt(double(f1(i))) : pow(double(f1(i)), 0.25)));
+//        uppBound[i] =  7.5 / (sqrt(2.0) * (freqWeight ? std::sqrt(double(f1(i))) : pow(double(f1(i)), 0.25)));
+//        if (freqWeight)
+//        {
+//            lowBound[i] = -7.5 / (sqrt(2.0) * std::sqrt(double(f1(i))));
+//            uppBound[i] =  7.5 / (sqrt(2.0) * std::sqrt(double(f1(i))));
+//        }
+//        else
+//        {
+            lowBound[i] = -7.5 / (sqrt(2.0) * pow(double(f1(i)), 0.25));
+            uppBound[i] =  7.5 / (sqrt(2.0) * pow(double(f1(i)), 0.25));
+//        }
 	}
 
 
@@ -177,7 +219,14 @@ int main(int argc, char *argv[])
 		GaussFchk esFchk(esFchkFile);
 		VibrationalAnalysis EState(esFchk);
 		double deltaE = esFchk.ReadReal("Total Energy") - gsFchk.ReadReal("Total Energy");
-		Eigen::VectorXd f2 = EState.intFC();
+
+        Eigen::VectorXd f2(Nmodes);
+        if (freqWeight)
+            for (int i = 0; i < Nmodes; i++)
+                f2(i) = double(EState.intFC()(i)) / std::sqrt(double(f1(i)));
+        else
+            f2 = EState.intFC();
+
 		std::ofstream SpecInput(MCTDHbaseName + "_spec.inp");
 		std::ofstream SpecOper(MCTDHbaseName + "_spec.op");
 		SpecInput.precision(1);
@@ -489,7 +538,7 @@ int main(int argc, char *argv[])
 	 */
 	IVRoper << "op_define-section\n";
 	IVRoper << "    title\n";
-	IVRoper << "        " << MCTDHbaseName << std::endl;
+    IVRoper << "        " << MCTDHbaseName << (freqWeight ? " frequency weighted" : "") << std::endl;
 	IVRoper << "    end-title\n";
 	IVRoper << "end-op_define-section\n\n";
 
@@ -538,7 +587,10 @@ int main(int argc, char *argv[])
 	IVRoper << std::endl;
 
 	for (int i = 0; i < Nmodes; i++)
-		IVRoper << "1.0             |" << i + 1 << " KE\n";
+        if (freqWeight)
+            IVRoper << "f_" << std::setfill('0') << std::setw(3) << i + 1 << "       |" << i + 1 << " KE\n";
+        else
+            IVRoper << "1.0       |" << i + 1 << " KE\n";
 
 	for (int i = 0; i < Nmodes; i++)
 		IVRoper << "0.5*f_" << std::setfill('0') << std::setw(3) << i + 1 << "       |" << i + 1 << " q^2\n";
@@ -586,7 +638,10 @@ int main(int argc, char *argv[])
 		IVRoper << "hamiltonian-section_Eq_" << std::setfill('0') << std::setw(3) << i + 1 << std::endl;
 		IVRoper << "usediag\n";
 		IVRoper << "modes | q_" << std::setfill('0') << std::setw(3) << i + 1 << std::endl;
-		IVRoper << "1.0             |1 KE\n";
+        if (freqWeight)
+            IVRoper << "f_"  << std::setfill('0') << std::setw(3) << i + 1 << "       " << "|1 KE\n";
+        else
+            IVRoper << "1.0             " << "|1 KE\n";
 		IVRoper << "0.5*f_" << std::setfill('0') << std::setw(3) << i + 1 << "       |1 q^2\n";
 		if (std::abs(phi(i,i,i)) >= deriv_thres)
 			IVRoper << "phi_" << std::setfill('0') << std::setw(3) << i + 1 << "_" << std::setfill('0') << std::setw(3) << i + 1 << "_" << std::setfill('0') << std::setw(3) << i + 1 << " |1 q^3\n";
