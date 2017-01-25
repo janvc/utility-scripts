@@ -103,10 +103,11 @@ int main(int argc, char *argv[])
 	std::ofstream logFile("log");
 
 	logFile << " Ground state fchk file:    " << GS_filename << std::endl;
-	logFile << "Excited state fchk file:    " << GS_filename << std::endl;
-	logFile << "MCTDH basename:             " << basename << std::endl << std::endl;
+	logFile << "Excited state fchk file:    " << ES_filename << std::endl;
+	logFile << "MCTDH basename:             " << basename << std::endl;
+	logFile << "Mode threshold:             " << paraThres << std::endl << std::endl;
 
-	logFile << "Number of atoms:      " << Natoms << std::endl;
+	logFile << "Number of atoms:              " << std::setw(4) << Natoms << std::endl;
 	logFile << " Ground state total energy  "
 			<< std::setw(16) << std::setprecision(12) << Eg << " Eh\n";
 	logFile << "Excited state total energy  "
@@ -133,6 +134,13 @@ int main(int argc, char *argv[])
 	logFile << "\nExcited state cartesian Hessian in [Eh / bohr**2]:\n";
     Utils::WriteSymmGaussMatrixToFile(logFile, EState.Fcart());
 
+	double zpeGtot = 0.0;
+	double zpeEtot = 0.0;
+	for (int i = 0; i < Nmodes; i++)
+	{
+		zpeGtot += 0.5 * sqrt(double(GState.intFC()(i)));
+		zpeEtot += 0.5 * sqrt(double(EState.intFC()(i)));
+	}
 
 	logFile << std::endl;
 	logFile << "Ground state mass-weighted force constants in [Eh / a0**2 * me]" << std::endl
@@ -141,12 +149,21 @@ int main(int argc, char *argv[])
 		logFile << std::setw(5) << i + 1
 				<< std::setw(20) << std::scientific << std::setprecision(9) << double(GState.intFC()(i))
 				<< std::setw(13) << std::fixed << std::setprecision(4) << double(GState.intFrq()(i)) << std::endl;
+
+	logFile << "\nGround state zero-point energy:"
+			<< std::setw(20) << std::scientific << std::setprecision(9) << zpeGtot << " Eh, "
+			<< std::setw(10) << std::fixed << std::setprecision(4) << zpeGtot * Eh2eV << " eV"<< std::endl;
+
 	logFile << "\nExcited state mass-weighted force constants in [Eh / a0**2 * me]" << std::endl
 			<< "and frequencies in [cm**-1]:\n";
 	for (int i = 0; i < Nmodes; i++)
 		logFile << std::setw(5) << i + 1
 				<< std::setw(20) << std::scientific << std::setprecision(9) << double(EState.intFC()(i))
 				<< std::setw(13) << std::fixed << std::setprecision(4) << double(EState.intFrq()(i)) << std::endl;
+
+	logFile << "\nExcited state zero-point energy:"
+				<< std::setw(20) << std::scientific << std::setprecision(9) << zpeEtot << " Eh, "
+				<< std::setw(10) << std::fixed << std::setprecision(4) << zpeEtot * Eh2eV << " eV"<< std::endl;
 
 	logFile << std::endl;
 	logFile << "Ground state mass-weighted normal modes in [a0 * sqrt(me)]:\n";
@@ -349,7 +366,66 @@ int main(int argc, char *argv[])
 	logFile << "\nDuschinsky Matrix J:\n";
     Utils::WriteGaussMatrixToFile(logFile, J);
 	logFile << "\nDisplacement Vector K:\n";
-	WriteVectorToFile(logFile, K, digits, clean, threshold);
+    Utils::WriteVectorToFile(logFile, K, digits, clean, threshold);
+
+	/*
+	 * Sort normal modes by strongest displacement:
+	 */
+	std::vector<int> KsortNM(Nmodes);
+	Eigen::VectorXd Ktmp = K;
+	for (int i = 0; i < Nmodes; i++)
+	{
+		int Imax = 0;
+		double Kmax = 0.0;
+		for (int j = 0; j < Nmodes; j++)
+		{
+			if (std::abs(double(Ktmp(j))) > Kmax)
+			{
+				Imax = j;
+				Kmax = std::abs(double(Ktmp(j)));
+			}
+		}
+		Ktmp(Imax) = 0.0;
+		KsortNM.at(i) = Imax;
+	}
+	logFile << "\nNormal modes sorted by displacement:\n";
+	for (int i = 0; i < Nmodes; i++)
+		logFile << std::setw(5) << KsortNM.at(i) + 1 << std::setw(20) << double(K(KsortNM.at(i))) << std::endl;
+
+	/*
+	 * sort normal modes by strongest rotation:
+	 */
+	std::vector<int> JsortNM(Nmodes);
+	std::vector<double> offDiagRatios(Nmodes);
+	for (int i = 0; i < Nmodes; i++)
+	{
+		double diagElement = double(J(i,i)) * double(J(i,i));
+		double offDiags = 0.0;
+		for (int j = 0; j < Nmodes; j++)
+			if (j != i)
+				offDiags += double(J(i,j)) * double(J(i,j));
+		offDiagRatios.at(i) = offDiags / diagElement;
+	}
+	std::vector<double> oDRtmp = offDiagRatios;
+	for (int i = 0; i < Nmodes; i++)
+	{
+		int Imax = 0;
+		double Rmax = 0.0;
+		for (int j = 0; j < Nmodes; j++)
+		{
+			if (oDRtmp.at(j) > Rmax)
+			{
+				Imax = j;
+				Rmax = oDRtmp.at(j);
+			}
+		}
+		oDRtmp.at(Imax) = 0.0;
+		JsortNM.at(i) = Imax;
+	}
+	logFile << "\nNormal modes sorted by rotation:\n";
+		for (int i = 0; i < Nmodes; i++)
+			logFile << std::setw(5) << JsortNM.at(i) + 1 << std::setw(20) << offDiagRatios.at(JsortNM.at(i)) << std::endl;
+
 
 	logFile << "\nMetric of the Duschinsky matrix:\n";
     Utils::WriteSymmGaussMatrixToFile(logFile, J.transpose() * J);
@@ -409,7 +485,94 @@ int main(int argc, char *argv[])
     Utils::WriteSymmGaussMatrixToFile(logFile, phiFull);
 
 	logFile << "\nShift coefficients:\n";
-	WriteVectorToFile(logFile, kappa, digits, clean, threshold);
+    Utils::WriteVectorToFile(logFile, kappa, digits, clean, threshold);
+
+	logFile << "\nEnergy offsets:\n";
+    Utils::WriteVectorToFile(logFile, d, digits, clean, threshold);
+
+	/*
+	 * convert everything to frequency-weighted units:
+	 */
+	Eigen::VectorXd fp_fw(Nmodes);
+	for (int i = 0; i < Nmodes; i++)
+		fp_fw(i) = double(fp(i)) / sqrt(double(f1(i)));
+
+	Eigen::MatrixXd phiFull_fw(Nmodes, Nmodes);
+	for (int i = 0; i < Nmodes; i++)
+		for (int j = 0; j < Nmodes; j++)
+			phiFull_fw(i,j) = double(phiFull(i,j)) / (pow(double(f1(i)), 0.25) * pow(double(f1(j)), 0.25));
+
+	Eigen::VectorXd kappa_fw(Nmodes);
+	for (int i = 0; i < Nmodes; i++)
+		kappa_fw(i) = double(kappa(i)) / pow(double(f1(i)), 0.25);
+
+	logFile << "\nFrequency-weighted effective force constants:\n";
+    Utils::WriteVectorToFile(logFile, fp_fw, digits, clean, threshold);
+
+	logFile << "\nFrequency-weighted force constant matrix:\n";
+    Utils::WriteSymmGaussMatrixToFile(logFile, phiFull_fw);
+
+	logFile << "\nFrequency-weighted shift coefficients:\n";
+    Utils::WriteVectorToFile(logFile, kappa_fw, digits, clean, threshold);
+
+	/*
+	 * Sort normal modes by strongest frequency-weighted displacement:
+	 */
+	std::vector<int> kappa_fw_sortNM(Nmodes);
+	Eigen::VectorXd kappatmp = kappa_fw;
+	for (int i = 0; i < Nmodes; i++)
+	{
+		int Imax = 0;
+		double Kmax = 0.0;
+		for (int j = 0; j < Nmodes; j++)
+		{
+			if (std::abs(double(kappatmp(j))) > Kmax)
+			{
+				Imax = j;
+				Kmax = std::abs(double(kappatmp(j)));
+			}
+		}
+		kappatmp(Imax) = 0.0;
+		kappa_fw_sortNM.at(i) = Imax;
+	}
+	logFile << "\nNormal modes sorted by frequency-weighted displacement:\n";
+	for (int i = 0; i < Nmodes; i++)
+		logFile << std::setw(5) << kappa_fw_sortNM.at(i) + 1 << std::setw(20) << double(kappa_fw(kappa_fw_sortNM.at(i))) << std::endl;
+
+	/*
+	 * Sort normal modes by strongest frequency-weighted coupling:
+	 */
+	std::vector<int> phi_fw_sortNM(Nmodes);
+	std::vector<double> max_phi_fw(Nmodes);
+	for (int i = 0; i < Nmodes; i++)
+	{
+		double maxPhi = 0.0;
+		for (int j = 0; j < Nmodes; j++)
+			if (i != j && std::abs(double(phiFull_fw(i,j))) > std::abs(maxPhi))
+				maxPhi = double(phiFull_fw(i,j));
+		max_phi_fw.at(i) = maxPhi;
+	}
+	std::vector<double> phiSortTmp = max_phi_fw;
+	for (int i = 0; i < Nmodes; i++)
+	{
+		int Imax = 0;
+		double Kmax = 0.0;
+		for (int j = 0; j < Nmodes; j++)
+		{
+			if (std::abs(phiSortTmp.at(j)) > Kmax)
+			{
+				Imax = j;
+				Kmax = std::abs(phiSortTmp.at(j));
+			}
+		}
+		phiSortTmp.at(Imax) = 0.0;
+		phi_fw_sortNM.at(i) = Imax;
+	}
+	logFile << "\nNormal modes sorted by frequency-weighted coupling:\n";
+	for (int i = 0; i < Nmodes; i++)
+		logFile << std::setw(5) << phi_fw_sortNM.at(i) + 1 << std::setw(20) << max_phi_fw.at(phi_fw_sortNM.at(i)) << std::endl;
+
+
 
 
 	/*
@@ -447,6 +610,57 @@ int main(int argc, char *argv[])
 			logFile << "   NO\n";
 	}
 	logFile << std::setw(4) << Npresent << " out of" << std::setw(4) << Nmodes << " included.\n";
+
+
+	/*
+	 * Use the modes actually present in the calculation to calculate the energy at the minimum
+	 * and energy offsets:
+	 */
+	// zero-point energies:
+	double zpeGinc = 0.0;
+	double zpeEinc = 0.0;
+	for (int i = 0; i < Npresent; i++)
+	{
+		zpeGinc += 0.5 * sqrt(double(f1(presentModes.at(i))));
+		zpeEinc += 0.5 * sqrt(double(f2(presentModes.at(i))));
+	}
+	// minimum coordinates:
+	Eigen::ColPivHouseholderQR<Eigen::MatrixXd> phiLin(phiFull);
+	Eigen::VectorXd minima = phiLin.solve(-kappa);
+	// energy at the minimum
+	double Emin = 0.0;
+	for (int i = 0; i < Npresent; i++)
+	{
+		for (int j = 0; j < Npresent; j++)
+			Emin += 0.5 * double(phiFull(presentModes.at(i),presentModes.at(j)))
+						* double(minima(presentModes.at(i)))
+						* double(minima(presentModes.at(j)));							// quadratic term
+		Emin += double(kappa(presentModes.at(i))) * double(minima(presentModes.at(i)));	// linear term
+		Emin += double(d(presentModes.at(i)));											// offset term
+	}
+
+
+	logFile << "\nVertical energies:\n";
+	logFile << "                                              Eh               eV\n";
+	logFile << "adiabatic excitation energy:           "
+			<< std::setw(18) << std::scientific << std::setprecision(9) << deltaE
+			<< std::setw(10) << std::fixed << std::setprecision(4) << deltaE * Eh2eV << std::endl;
+	logFile << "ground state zero-point energy:        "
+				<< std::setw(18) << std::scientific << std::setprecision(9) << zpeGinc
+				<< std::setw(10) << std::fixed << std::setprecision(4) << zpeGinc * Eh2eV << std::endl;
+	logFile << "excited state zero-point energy:       "
+					<< std::setw(18) << std::scientific << std::setprecision(9) << zpeEinc
+					<< std::setw(10) << std::fixed << std::setprecision(4) << zpeEinc * Eh2eV << std::endl;
+	logFile << "difference between zero-point energies:"
+					<< std::setw(18) << std::scientific << std::setprecision(9) << zpeEinc - zpeGinc
+					<< std::setw(10) << std::fixed << std::setprecision(4) << (zpeEinc - zpeGinc) * Eh2eV << std::endl;
+	logFile << "energy at the minimum (should be zero):"
+						<< std::setw(18) << std::scientific << std::setprecision(9) << Emin
+						<< std::setw(10) << std::fixed << std::setprecision(4) << Emin * Eh2eV << std::endl;
+	logFile << "shifted minimum (E_ad - zpeG):         "
+							<< std::setw(18) << std::scientific << std::setprecision(9) << deltaE - zpeGinc + Emin
+							<< std::setw(10) << std::fixed << std::setprecision(4) << (deltaE - zpeGinc + Emin) * Eh2eV << std::endl;
+
 
 	/*
 	 * Start writing the MCTDH input files:
