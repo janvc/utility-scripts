@@ -28,8 +28,8 @@ import time
 #
 # some global variables
 #
-mctdhExe = "/home/jvcosel/mctdh85.4/bin/binary/x86_64/mctdh85"
-rdgpopExe = "/home/jvcosel/mctdh85.4/bin/binary/x86_64/rdgpop85"
+mctdhExe = "/home/jvcosel/mctdh85.5/bin/binary/x86_64/mctdh85"
+rdgpopExe = "/home/jvcosel/mctdh85.5/bin/binary/x86_64/rdgpop85"
 initInputName = sys.argv[1]
 natPopThres = float(sys.argv[2])
 gPopThres = float(sys.argv[3])
@@ -178,7 +178,7 @@ if __name__ == '__main__':
         # run the calculation:
         print "Starting calculation " + str(currentNameDir)
         mctdhCommand = [mctdhExe, "-mnd", currentInputName]
-        print " Time [fs]   max. natural population    waiting time [s]"
+        print " Time [fs]   max. natural population    max. grid population    waiting time [s]"
 
         MCTDHproc = subprocess.Popen(mctdhCommand)
 
@@ -196,7 +196,8 @@ if __name__ == '__main__':
 
             # determine the waiting time: twait = 10' + (110'/tfinal) * t
             waitTime = int(600.0 + (6600.0 / tfinal) * currentTime)
-            print '   {0:.3f}           {1:.5f}               {2:5d}'.format(currentTime, currentPopList[0][3], waitTime)
+            print '   {0:.3f}           {1:.5f}                {2:.5f}               {3:5d}'.format(currentTime, currentPopList[0][3], max(max(gPopList)), waitTime)
+            sys.stdout.flush()
 
             violated = False
             if (currentPopList[0][3] > natPopThres or max(max(gPopList)) > gPopThres):
@@ -253,27 +254,27 @@ if __name__ == '__main__':
                 newPBline = "    q_" + str(i + 1).zfill(3) + "  ho   "
 
                 if (gPopList[i][2] > gPopThres):    # basis end
-                    newPBline += str(int(currLnData[2]) + 1)
-                elif (gPopList[i][2] > 10.0 * gPopThres):
                     newPBline += str(int(currLnData[2]) + 2)
+                elif (gPopList[i][2] > 10.0 * gPopThres):
+                    newPBline += str(int(currLnData[2]) + 4)
                 else:
                     newPBline += str(int(currLnData[2]))
 
                 newPBline += "  xi-xf    "
 
                 if (gPopList[i][0] > gPopThres):    # grid begin
-                    newPBline += "%.1f"%(float(currLnData[4]) - gridStep / 2.0)
-                elif (gPopList[i][0] > 10.0 * gPopThres):
                     newPBline += "%.1f"%(float(currLnData[4]) - gridStep)
+                elif (gPopList[i][0] > 10.0 * gPopThres):
+                    newPBline += "%.1f"%(float(currLnData[4]) - gridStep * 2.0)
                 else:
                     newPBline += "%.1f"%(float(currLnData[4]))
 
                 newPBline += "   "
 
                 if (gPopList[i][1] > gPopThres):    # grid end
-                    newPBline += "%.1f"%(float(currLnData[5]) + gridStep / 2.0)
-                elif (gPopList[i][1] > 10.0 * gPopThres):
                     newPBline += "%.1f"%(float(currLnData[5]) + gridStep)
+                elif (gPopList[i][1] > 10.0 * gPopThres):
+                    newPBline += "%.1f"%(float(currLnData[5]) + gridStep * 2.0)
                 else:
                     newPBline += "%.1f"%(float(currLnData[5]))
 
