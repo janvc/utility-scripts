@@ -725,9 +725,29 @@ Eigen::VectorXd VibrationalAnalysis::X() const
 	return X_min;
 }
 
+Eigen::VectorXd VibrationalAnalysis::Xs() const
+{
+    return X_s;
+}
+
+Eigen::VectorXd VibrationalAnalysis::Xsr() const
+{
+    return X_sr;
+}
+
 Eigen::VectorXd VibrationalAnalysis::Q() const
 {
 	return Q_min;
+}
+
+Eigen::VectorXd VibrationalAnalysis::Qs() const
+{
+    return Q_s;
+}
+
+Eigen::VectorXd VibrationalAnalysis::Qsr() const
+{
+    return Q_sr;
 }
 
 Eigen::MatrixXd VibrationalAnalysis::Fcart() const

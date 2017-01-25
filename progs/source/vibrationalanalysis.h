@@ -54,7 +54,11 @@ public:
 	double totalMass() const;
 
 	Eigen::VectorXd X() const;
+    Eigen::VectorXd Xs() const;
+    Eigen::VectorXd Xsr() const;
 	Eigen::VectorXd Q() const;
+    Eigen::VectorXd Qs() const;
+    Eigen::VectorXd Qsr() const;
 	Eigen::VectorXd masses() const;
 
 	Eigen::VectorXi atomicNumbers() const;
