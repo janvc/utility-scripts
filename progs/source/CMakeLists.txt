@@ -51,6 +51,7 @@ set(gva2_SOURCES
     vibrationalanalysis.cpp
     GaussFchk.cpp
     utilities.cpp
+    mkduschclass.cpp
 )
 
 set(mkivrcalc_SOURCES
