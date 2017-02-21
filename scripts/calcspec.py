@@ -32,7 +32,11 @@ mctdhExe = "/home/jvcosel/mctdh85.5/bin/binary/x86_64/mctdh85"
 rdgpopExe = "/home/jvcosel/mctdh85.5/bin/binary/x86_64/rdgpop85"
 initInputName = sys.argv[1]
 natPopThres = float(sys.argv[2])
-gPopThres = float(sys.argv[3])
+optimizeGrid = False
+gPopThres = 0.0
+if len(sys.argv) == 4:
+    optimizeGrid = True
+    gPopThres = float(sys.argv[3])
 
 
 #
@@ -126,6 +130,25 @@ def getCurrentTime(nameDir):
 
     return currentTime
 
+def findMCTDHparameter(dataSet, string):
+    for i in range(len(dataSet)):
+        if string in dataSet[i]:
+            return dataSet[i].split("=")[1]
+
+def findMCTDHline(dataSet, string):
+    for i in range(len(dataSet)):
+        if string in dataSet[i]:
+            return i
+
+def checkNormalTerm(nameDir):
+    logFileName = nameDir + "/log"
+
+    with open(logFileName) as logFile:
+        for line in logFile:
+            if "Program terminated normally." in line:
+                return True
+
+    return False
 
 #
 # here begins the main function
@@ -154,25 +177,16 @@ if __name__ == '__main__':
     currentInputFile.close()
 
     # determine the start of the ML basis section and the pbasis section:
-    for i in range(len(currentInputData)):
-        if (currentInputData[i].startswith("mlbasis-section")):
-            mlStart = i
-        if (currentInputData[i].startswith("pbasis-section")):
-            primStart = i
-    primStart += 1
+    mlStart = int(findMCTDHline(currentInputData, "mlbasis-section"))
+    primStart = int(findMCTDHline(currentInputData, "pbasis-section")) + 1
 
     # determine the length of the propagation:
-    tfinal = 0.0
-    for i in range(len(initInputData)):
-        if ("tfinal" in initInputData[i]):
-            tfinal = float(initInputData[i].split()[2])
-
+    tfinal = float(findMCTDHparameter(initInputData, "tfinal"))
 
 
     #
     # this is the big calculation loop
     #
-    converged = False
     while True:
 
         # run the calculation:
@@ -200,26 +214,37 @@ if __name__ == '__main__':
             sys.stdout.flush()
 
             violated = False
-            if (currentPopList[0][3] > natPopThres or max(max(gPopList)) > gPopThres):
+            if currentPopList[0][3] > natPopThres:
+                violated = True
+            if optimizeGrid and max(max(gPopList)) > gPopThres:
                 violated = True
 
-            # check if the convergence criterion has been violated and stop the calculation:
+            # check, if the MCTDH process is still running or has terminated abnormally.
+            # If so, issue the 'violated' flag
             if (MCTDHproc.poll() is not None):
+                if checkNormalTerm(currentNameDir):
+                    if violated:
+                        finished = False
+                    else:
+                        finished = True
+                else:
+                    finished = False
                 break
-            if (violated):
-                try:
-                    MCTDHproc.terminate()
-                except OSError:
-                    pass
-                break
+            else:
+                if violated:
+                    try:
+                        MCTDHproc.termimate()
+                    except OSError:
+                        pass
+                    finished = False
+                    break
 
             time.sleep(waitTime)
 
 
 
         # check, if the MCTDH calculation finished sucessfully and is converged, or not
-        if (not violated):
-            converged = True
+        if (finished):
             break
         else:
             # create a new and improved input file:
@@ -246,40 +271,41 @@ if __name__ == '__main__':
                     newInputData[currLNr] += "\n"
 
             # now do the primitive basis:
-            for i in range(len(gPopList)):
-                currLNr = primStart + i
-                currLn = currentInputData[currLNr]
-                currLnData = currLn.split()
-                gridStep = (float(currLnData[5]) - float(currLnData[4])) / float(currLnData[2])
-                newPBline = "    q_" + str(i + 1).zfill(3) + "  ho   "
+            if optimizeGrid:
+                for i in range(len(gPopList)):
+                    currLNr = primStart + i
+                    currLn = currentInputData[currLNr]
+                    currLnData = currLn.split()
+                    gridStep = (float(currLnData[5]) - float(currLnData[4])) / float(currLnData[2])
+                    newPBline = "    q_" + str(i + 1).zfill(3) + "  ho   "
 
-                if (gPopList[i][2] > gPopThres):    # basis end
-                    newPBline += str(int(currLnData[2]) + 2)
-                elif (gPopList[i][2] > 10.0 * gPopThres):
-                    newPBline += str(int(currLnData[2]) + 4)
-                else:
-                    newPBline += str(int(currLnData[2]))
+                    if (gPopList[i][2] > gPopThres):    # basis end
+                        newPBline += str(int(currLnData[2]) + 2)
+                    elif (gPopList[i][2] > 10.0 * gPopThres):
+                        newPBline += str(int(currLnData[2]) + 4)
+                    else:
+                        newPBline += str(int(currLnData[2]))
 
-                newPBline += "  xi-xf    "
+                    newPBline += "  xi-xf    "
 
-                if (gPopList[i][0] > gPopThres):    # grid begin
-                    newPBline += "%.1f"%(float(currLnData[4]) - gridStep)
-                elif (gPopList[i][0] > 10.0 * gPopThres):
-                    newPBline += "%.1f"%(float(currLnData[4]) - gridStep * 2.0)
-                else:
-                    newPBline += "%.1f"%(float(currLnData[4]))
+                    if (gPopList[i][0] > gPopThres):    # grid begin
+                        newPBline += "%.1f"%(float(currLnData[4]) - gridStep)
+                    elif (gPopList[i][0] > 10.0 * gPopThres):
+                        newPBline += "%.1f"%(float(currLnData[4]) - gridStep * 2.0)
+                    else:
+                        newPBline += "%.1f"%(float(currLnData[4]))
 
-                newPBline += "   "
+                    newPBline += "   "
 
-                if (gPopList[i][1] > gPopThres):    # grid end
-                    newPBline += "%.1f"%(float(currLnData[5]) + gridStep)
-                elif (gPopList[i][1] > 10.0 * gPopThres):
-                    newPBline += "%.1f"%(float(currLnData[5]) + gridStep * 2.0)
-                else:
-                    newPBline += "%.1f"%(float(currLnData[5]))
+                    if (gPopList[i][1] > gPopThres):    # grid end
+                        newPBline += "%.1f"%(float(currLnData[5]) + gridStep)
+                    elif (gPopList[i][1] > 10.0 * gPopThres):
+                        newPBline += "%.1f"%(float(currLnData[5]) + gridStep * 2.0)
+                    else:
+                        newPBline += "%.1f"%(float(currLnData[5]))
 
-                newPBline += "\n"
-                newInputData[currLNr] = newPBline
+                    newPBline += "\n"
+                    newInputData[currLNr] = newPBline
 
             currentNumber = int(currentNameDir[-3:])
             newNumber = currentNumber + 1
