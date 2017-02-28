@@ -233,7 +233,7 @@ if __name__ == '__main__':
             else:
                 if violated:
                     try:
-                        MCTDHproc.termimate()
+                        MCTDHproc.terminate()
                     except OSError:
                         pass
                     finished = False
