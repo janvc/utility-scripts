@@ -245,6 +245,7 @@ if __name__ == '__main__':
 
         # check, if the MCTDH calculation finished sucessfully and is converged, or not
         if (finished):
+            print "finished calculation " + initBaseName
             break
         else:
             # create a new and improved input file:

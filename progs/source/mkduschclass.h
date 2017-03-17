@@ -36,6 +36,18 @@ public:
     void calcMCTDHdata();
     void selectModes();
 
+    int Nmodes() const;
+    double Ead() const;
+    Eigen::VectorXd F1() const;
+    Eigen::VectorXd F2() const;
+    Eigen::VectorXd Fp() const;
+    Eigen::VectorXd Kfull() const;
+    Eigen::MatrixXd Jfull() const;
+    Eigen::MatrixXd Ftilde() const;
+
+    VibrationalAnalysis *gState();
+    VibrationalAnalysis *eState();
+
 private:
     int m_Natoms;
     int m_Ncoords;

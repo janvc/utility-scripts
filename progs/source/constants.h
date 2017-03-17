@@ -35,4 +35,9 @@ const double Eh2eV = 27.21138344;
 const double ang2a0 = 1.0e10 * a0;
 const double fs2au = Eh / hbar * 1.0e-15;
 
+// spectrum conversion factor from
+// "Computational Strategies for Spectroscopy",
+// chapter 2, eq. (2.57)
+const double facabs = 703.301;
+
 #endif /* CONSTANTS_H_ */

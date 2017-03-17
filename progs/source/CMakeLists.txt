@@ -1,6 +1,9 @@
 find_package(Boost COMPONENTS system filesystem program_options REQUIRED)
 include_directories(${Boost_INCLUDE_DIRS})
 
+find_package(Armadillo REQUIRED)
+find_package(FFTW REQUIRED)
+
 set(convolute_SOURCES
     convolute.cpp
 )
@@ -67,8 +70,8 @@ set(mctdh_fft_SOURCES
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -Wextra")
 set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -std=f2008 -fall-intrinsics -Wall -Wextra")
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -ggdb3")
-set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -ggdb3")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -ggdb3 -Og")
+set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -ggdb3 -Og")
 
 set(Lapack_LIBRARIES lapack)
 
@@ -93,7 +96,7 @@ target_link_libraries(test_cubic ${Boost_LIBRARIES})
 target_link_libraries(gauss_viban_f ${Lapack_LIBRARIES})
 target_link_libraries(gva2 ${Boost_LIBRARIES})
 target_link_libraries(mkivrcalc ${Boost_LIBRARIES})
-target_link_libraries(mctdh_fft ${Boost_LIBRARIES})
+target_link_libraries(mctdh_fft ${Boost_LIBRARIES} ${FFTW_LIBRARIES})
 
 install(TARGETS convolute DESTINATION bin)
 install(TARGETS gauss_viban_cpp DESTINATION bin)

@@ -137,13 +137,13 @@ MkDuschClass::MkDuschClass(GaussFchk &gState, GaussFchk &eState)
 
     if (m_RMSDa < m_RMSDb)
     {
-        m_Jfull = NMOe.transpose() * BigRotMat * NMOg;
-        m_Kfull = NMOe.transpose() * (m_QRg - m_QSe);
+        m_Jfull = NMOg.transpose() * BigRotMat * NMOe;
+        m_Kfull = NMOg.transpose() * (m_QSe - m_QRg);
     }
     else
     {
-        m_Jfull = NMOe.transpose() * NMOg;
-        m_Kfull = NMOe.transpose() * (m_QSg - m_QSe);
+        m_Jfull = NMOg.transpose() * NMOe;
+        m_Kfull = NMOg.transpose() * (m_QSe - m_QSg);
     }
 }
 
@@ -485,4 +485,55 @@ void MkDuschClass::createMCTDHfiles(const std::string &basename, const bool freq
     }
     operatorFile << "end-operator\n";
 }
+
+int MkDuschClass::Nmodes() const
+{
+    return m_Nmodes;
+}
+
+double MkDuschClass::Ead() const
+{
+    return m_dE;
+}
+
+Eigen::VectorXd MkDuschClass::F1() const
+{
+    return m_f1;
+}
+
+Eigen::VectorXd MkDuschClass::F2() const
+{
+    return m_f2;
+}
+
+Eigen::VectorXd MkDuschClass::Fp() const
+{
+    return m_fp;
+}
+
+Eigen::VectorXd MkDuschClass::Kfull() const
+{
+    return m_Kfull;
+}
+
+Eigen::MatrixXd MkDuschClass::Jfull() const
+{
+    return m_Jfull;
+}
+
+Eigen::MatrixXd MkDuschClass::Ftilde() const
+{
+    return m_phi;
+}
+
+VibrationalAnalysis *MkDuschClass::gState()
+{
+    return &m_GroundState;
+}
+
+VibrationalAnalysis *MkDuschClass::eState()
+{
+    return &m_ExcitedState;
+}
+
 
