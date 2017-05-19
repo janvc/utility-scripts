@@ -80,7 +80,10 @@ int main(int argc, char *argv[])
 
 	VibrationalAnalysis GState(gsFchk);
 
-	GState.readAnharm(AnharmLogName);
+    if (freqWeight)
+        GState.readAnharm(AnharmLogName, true);
+    else
+        GState.readAnharm(AnharmLogName);
 
 
 	int Natoms = GState.Natoms();
@@ -92,24 +95,12 @@ int main(int argc, char *argv[])
     Eigen::VectorXd diagf(Nmodes);
 
     if (freqWeight)
-        for (int i = 0; i < Nmodes; i++)
-        {
-            f1(i) = std::sqrt(double(GState.intFC()(i)));
-            diagf(i) = double(GState.diag4thDerivs()(i)) / double(GState.intFC()(i));
-
-            for (int j = i; j < Nmodes; j++)
-                for (int k = j; k < Nmodes; k++)
-                    phi(i,j,k) = GState.thirdDerivs()(i,j,k)
-                               / pow(double(GState.intFC()(i))
-                                   * double(GState.intFC()(j))
-                                   * double(GState.intFC()(k)), 0.25);
-        }
+        f1 = GState.intFrq();
     else
-    {
         f1 = GState.intFC();
-        phi = GState.thirdDerivs();
-        diagf = GState.diag4thDerivs();
-    }
+
+    phi = GState.thirdDerivs();
+    diagf = GState.diag4thDerivs();
 
 
 	std::cout << "--------------------------------------------\n";
@@ -195,20 +186,18 @@ int main(int argc, char *argv[])
 
 	for (int i = 0; i < Nmodes; i++)
 	{
-//        nBasis[i] = lrint(-0.7* (freqWeight ? 2.0 : 1.0) * log(double(f1(i)))) + 6;
-        nBasis[i] = lrint(-1.4 * log(double(f1(i)))) + 6;
-//        lowBound[i] = -7.5 / (sqrt(2.0) * (freqWeight ? std::sqrt(double(f1(i))) : pow(double(f1(i)), 0.25)));
-//        uppBound[i] =  7.5 / (sqrt(2.0) * (freqWeight ? std::sqrt(double(f1(i))) : pow(double(f1(i)), 0.25)));
-//        if (freqWeight)
-//        {
-//            lowBound[i] = -7.5 / (sqrt(2.0) * std::sqrt(double(f1(i))));
-//            uppBound[i] =  7.5 / (sqrt(2.0) * std::sqrt(double(f1(i))));
-//        }
-//        else
-//        {
+        if (freqWeight)
+        {
+            nBasis[i] = 20; //lrint(-1.4 * log(double(f1(i)))) + 6;
+            lowBound[i] = -5.0; //-7.5 / (sqrt(2.0) * pow(double(f1(i)), 0.25));
+            uppBound[i] =  5.0; //7.5 / (sqrt(2.0) * pow(double(f1(i)), 0.25));
+        }
+        else
+        {
+            nBasis[i] = lrint(-1.4 * log(double(f1(i)))) + 6;
             lowBound[i] = -7.5 / (sqrt(2.0) * pow(double(f1(i)), 0.25));
             uppBound[i] =  7.5 / (sqrt(2.0) * pow(double(f1(i)), 0.25));
-//        }
+        }
 	}
 
 
@@ -550,6 +539,8 @@ int main(int argc, char *argv[])
 	{
 		IVRoper << "    f_" << std::setfill('0') << std::setw(3) << i + 1 << "           = ";
         Utils::WriteFortranNumber(IVRoper, double(f1(i)));
+        if (freqWeight)
+            IVRoper << ", cm-1";
 		IVRoper << std::endl;
 	}
 	IVRoper << "    # cubic couplings:\n";
@@ -564,6 +555,8 @@ int main(int argc, char *argv[])
 								   << "_" << std::setfill('0') << std::setw(3) << k + 1
 								   << " = ";
                     Utils::WriteFortranNumber(IVRoper, phi(i,j,k) / 6.0);
+                    if (freqWeight)
+                        IVRoper << ", cm-1";
 					IVRoper << std::endl;
 				}
 	IVRoper << "    # diagonal quartic force constants:\n";
@@ -573,6 +566,8 @@ int main(int argc, char *argv[])
 		{
 			IVRoper << "    fdia_" << std::setfill('0') << std::setw(3) << i + 1 << "        = ";
             Utils::WriteFortranNumber(IVRoper, double(diagf(i)) / 24.0);
+            if (freqWeight)
+                IVRoper << ", cm-1";
 			IVRoper << std::endl;
 		}
 	IVRoper << "end-parameter-section\n\n";
@@ -684,12 +679,12 @@ int main(int argc, char *argv[])
 
 	IVRinput << "pbasis-section\n";
 	for (int i = 0; i < Nmodes; i++)
-		IVRinput << "    q_" << std::setfill('0') << std::setw(3) << i + 1
+        IVRinput << "    q_" << std::setfill('0') << std::setw(3) << i + 1
 				 << "  ho  " << std::setw(3) << std::setfill(' ') << nBasis[i] << "  xi-xf  "
 				 << std::fixed << std::setfill(' ') << std::setw(8)
 				 << lowBound[i]
 				 << std::fixed << std::setfill(' ') << std::setw(8)
-				 << uppBound[i] << std::endl;
+                 << uppBound[i] << std::endl;
 	IVRinput << "end-pbasis-section\n\n";
 
 	IVRinput << "integrator-section\n";

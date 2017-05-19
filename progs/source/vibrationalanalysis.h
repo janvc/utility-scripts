@@ -37,7 +37,7 @@ public:
 	virtual ~VibrationalAnalysis();
 
 	void createThirdDerivs(std::string &baseName);
-	void readAnharm(const std::string &GaussLogName);
+    void readAnharm(const std::string &GaussLogName, bool wavenumbers = false);
 	void createAnharmMCTDHoper(const std::string &baseName, const double thres);
 	void calcKappa(GaussFchk &esFchk);
 

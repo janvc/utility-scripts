@@ -24,10 +24,11 @@ import subprocess
 import matplotlib.pyplot as plt
 import numpy as np
 import math
+import sys
 
 
 oplogFileName = "op.log"
-expectProg = "/home/jvcosel/mctdh85.4/bin/binary/x86_64/expect85"
+expectProg = "/home/jvcosel/mctdh85.5/bin/binary/x86_64/expect85"
 
 class ModePlotter:
     def __init__(self):
@@ -47,7 +48,7 @@ class ModePlotter:
             expectCommand = [expectProg, "-o", "no", operName]
             stdOut = subprocess.check_output(expectCommand)
             tempList = stdOut.split()
-            self.Nsteps = len(stdOut.split('\n')) - 8
+            self.Nsteps = len(stdOut.split('\n')) - 16
             self.Xaxis = []
             Ytmp = []
             for j in range(self.Nsteps):
@@ -116,14 +117,15 @@ if __name__ == "__main__":
     dataFile.close()
 
 
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
+    if len(sys.argv) == 1:
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
 
-    for i in range(mp.modes()):
-        data = mp.trace(i)
-        ax.plot(data[0], data[1],)
+        for i in range(mp.modes()):
+            data = mp.trace(i)
+            ax.plot(data[0], data[1],)
 
-    fig.canvas.mpl_connect('button_press_event', lambda event: mp.onclick(event, ax))
+        fig.canvas.mpl_connect('button_press_event', lambda event: mp.onclick(event, ax))
 
-    plt.show()
+        plt.show()
 

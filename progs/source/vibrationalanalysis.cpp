@@ -259,7 +259,7 @@ void VibrationalAnalysis::createThirdDerivs(std::string &baseName)
 		fourthDerivs(i) = (Fdiag_Dp.at(i)(i,i) + Fdiag_Dn.at(i)(i,i) - 2.0 * IntFrcCon(i)) / (shiftFac * shiftFac);
 }
 
-void VibrationalAnalysis::readAnharm(const std::string &GaussLogName)
+void VibrationalAnalysis::readAnharm(const std::string &GaussLogName, bool wavenumbers)
 {
 	/*
 	 * The conversion factor from the 'reduced values' that Gaussian prints out to
@@ -311,14 +311,27 @@ void VibrationalAnalysis::readAnharm(const std::string &GaussLogName)
 				phiTmp(i,j,k) = 0.0;
 
 	for (int i = 0; i < int(index1.size()); i++)
-	{
-		phiTmp(index1[i], index2[i], index3[i]) = RedValues[i] * sqrt(double(IntFreqs(index1[i])) * double(IntFreqs(index2[i])) * double(IntFreqs(index3[i]))) / cubFac;
-		phiTmp(index2[i], index1[i], index3[i]) = RedValues[i] * sqrt(double(IntFreqs(index1[i])) * double(IntFreqs(index2[i])) * double(IntFreqs(index3[i]))) / cubFac;
-		phiTmp(index1[i], index3[i], index2[i]) = RedValues[i] * sqrt(double(IntFreqs(index1[i])) * double(IntFreqs(index2[i])) * double(IntFreqs(index3[i]))) / cubFac;
-		phiTmp(index3[i], index2[i], index1[i]) = RedValues[i] * sqrt(double(IntFreqs(index1[i])) * double(IntFreqs(index2[i])) * double(IntFreqs(index3[i]))) / cubFac;
-		phiTmp(index3[i], index1[i], index2[i]) = RedValues[i] * sqrt(double(IntFreqs(index1[i])) * double(IntFreqs(index2[i])) * double(IntFreqs(index3[i]))) / cubFac;
-		phiTmp(index2[i], index3[i], index1[i]) = RedValues[i] * sqrt(double(IntFreqs(index1[i])) * double(IntFreqs(index2[i])) * double(IntFreqs(index3[i]))) / cubFac;
+    {
+        if (wavenumbers)
+        {
+            phiTmp(index1[i], index2[i], index3[i]) = RedValues[i];
+            phiTmp(index2[i], index1[i], index3[i]) = RedValues[i];
+            phiTmp(index1[i], index3[i], index2[i]) = RedValues[i];
+            phiTmp(index3[i], index2[i], index1[i]) = RedValues[i];
+            phiTmp(index3[i], index1[i], index2[i]) = RedValues[i];
+            phiTmp(index2[i], index3[i], index1[i]) = RedValues[i];
+        }
+        else
+        {
+            phiTmp(index1[i], index2[i], index3[i]) = RedValues[i] * sqrt(double(IntFreqs(index1[i])) * double(IntFreqs(index2[i])) * double(IntFreqs(index3[i]))) / cubFac;
+            phiTmp(index2[i], index1[i], index3[i]) = RedValues[i] * sqrt(double(IntFreqs(index1[i])) * double(IntFreqs(index2[i])) * double(IntFreqs(index3[i]))) / cubFac;
+            phiTmp(index1[i], index3[i], index2[i]) = RedValues[i] * sqrt(double(IntFreqs(index1[i])) * double(IntFreqs(index2[i])) * double(IntFreqs(index3[i]))) / cubFac;
+            phiTmp(index3[i], index2[i], index1[i]) = RedValues[i] * sqrt(double(IntFreqs(index1[i])) * double(IntFreqs(index2[i])) * double(IntFreqs(index3[i]))) / cubFac;
+            phiTmp(index3[i], index1[i], index2[i]) = RedValues[i] * sqrt(double(IntFreqs(index1[i])) * double(IntFreqs(index2[i])) * double(IntFreqs(index3[i]))) / cubFac;
+            phiTmp(index2[i], index3[i], index1[i]) = RedValues[i] * sqrt(double(IntFreqs(index1[i])) * double(IntFreqs(index2[i])) * double(IntFreqs(index3[i]))) / cubFac;
+        }
 	}
+
 
 	avgDerivs = phiTmp;
 
@@ -356,7 +369,12 @@ void VibrationalAnalysis::readAnharm(const std::string &GaussLogName)
 
 	for (int i = 0; i < int(qindex1.size()); i++)
 		if (qindex1[i] == qindex2[i] && qindex1[i] ==  qindex3[i] && qindex1[i] == qindex4[i])
-			fourthDerivs(qindex1[i]) = Rqvalues[i] * double(IntFreqs(qindex1[i])) * double(IntFreqs(qindex1[i])) / quartFac;
+        {
+            if (wavenumbers)
+                fourthDerivs(qindex1[i]) = Rqvalues[i];
+            else
+                fourthDerivs(qindex1[i]) = Rqvalues[i] * double(IntFreqs(qindex1[i])) * double(IntFreqs(qindex1[i])) / quartFac;
+        }
 }
 
 void VibrationalAnalysis::createAnharmMCTDHoper(const std::string &baseName, const double thres)

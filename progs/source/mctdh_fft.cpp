@@ -122,7 +122,6 @@ int main(int argc, char *argv[])
     std::cout << "total number of points: " << N << std::endl;
     std::cout << "dt: " << dt << " au, " << dt / fs2au << " fs\n";
     std::cout << "dw: " << dw << " au, " << dw * Eh2eV << " eV\n";
-    std::cout << "factor: " << (N * N * dt * dt) / (2.0 * M_PI) << std::endl;
 
     // compute the integral (i.e. area) of the absolute squared MCTDH correlation function:
     double mctdhInt = 0.0;
@@ -131,10 +130,9 @@ int main(int argc, char *argv[])
         double leftVal = std::abs(autoInp[i]) * std::abs(autoInp[i]);
         double rightVal = std::abs(autoInp[i+1]) * std::abs(autoInp[i+1]);
 
-        //mctdhInt += 0.5 * dt * (leftVal + rightVal);
-        mctdhInt += 0.5 * (leftVal + rightVal);
+        mctdhInt += 0.5 * dt * (leftVal + rightVal);
     }
-    std::cout << "integral of the MCTDH correlation function: " << mctdhInt << std::endl;
+    std::cout << "integral of the initial MCTDH correlation function: " << mctdhInt << std::endl;
 
     // if requested, set the initial phase of the autocorrelation
     // function to zero and re-normalize it:
@@ -185,8 +183,7 @@ int main(int argc, char *argv[])
         double leftVal = std::abs(autoFull[i]) * std::abs(autoFull[i]);
         double rightVal = std::abs(autoFull[i+1]) * std::abs(autoFull[i+1]);
 
-        //corrInt += 0.5 * dt * (leftVal + rightVal);
-        corrInt += 0.5 * (leftVal + rightVal);
+        corrInt += 0.5 * dt * (leftVal + rightVal);
     }
     std::cout << "integral of the correlation function: " << corrInt << std::endl;
 
@@ -200,8 +197,7 @@ int main(int argc, char *argv[])
         double leftVal = std::abs(spec[i]) * std::abs(spec[i]);
         double rightVal = std::abs(spec[i+1]) * std::abs(spec[i+1]);
 
-        //specInt += 0.5 * dw * (leftVal + rightVal);
-        specInt += 0.5 * (leftVal + rightVal);
+        specInt += 0.5 * dw * (leftVal + rightVal);
     }
     std::cout << "integral of the initial spectrum: " << specInt << std::endl;
 
@@ -263,16 +259,18 @@ int main(int argc, char *argv[])
     double M1 = 0.0;
     for (int i = 0; i < N / 2; i++)
         M1 += dw * Eh2eV * freq[i] * (final_spec[i].real() + final_spec[i+1].real()) * 0.5;
+    M1 /= M0;
 
-    std::cout << "first moment: " << M1 / M0 << std::endl;
+    std::cout << "first moment: " << M1 << std::endl;
 
     // Compute the second moment of the spectrum.
     double M2 = 0.0;
     for (int i = 0; i < N / 2; i++)
         M2 += dw * Eh2eV * freq[i] * freq[i] * (final_spec[i].real() + final_spec[i+1].real()) * 0.5;
+    M2 /= M0;
 
-    std::cout << "second moment: " << M2 / M0 << std::endl;
-    double specWidth = std::sqrt((M2 / M0) - ((M1 / M0) * (M1 / M0)));
+    std::cout << "second moment: " << M2 << std::endl;
+    double specWidth = std::sqrt(M2 - (M1 * M1));
     std::cout << "spectrum width: " << specWidth << std::endl;
 
 
