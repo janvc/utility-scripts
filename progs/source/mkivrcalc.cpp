@@ -544,7 +544,9 @@ int main(int argc, char *argv[])
 		IVRoper << std::endl;
 	}
 	IVRoper << "    # cubic couplings:\n";
-	IVRoper << "    # the numbers here are equal to 1/6 * phi_ijk\n";
+    IVRoper << "    # the terms of the form 'iii' are scaled by 1/6\n";
+    IVRoper << "    # the terms of the form 'ijj' are scaled by 1/2\n";
+    IVRoper << "    # the terms of the form 'ijk' are not scaled\n";
 	for (int i = 0; i < Nmodes; i++)
 		for (int j = i; j < Nmodes; j++)
 			for (int k = j; k < Nmodes; k++)
@@ -554,7 +556,12 @@ int main(int argc, char *argv[])
 								   << "_" << std::setfill('0') << std::setw(3) << j + 1
 								   << "_" << std::setfill('0') << std::setw(3) << k + 1
 								   << " = ";
-                    Utils::WriteFortranNumber(IVRoper, phi(i,j,k) / 6.0);
+                    if (i == j && i == k)
+                        Utils::WriteFortranNumber(IVRoper, phi(i,j,k) / 6.0);
+                    else if (i == j || i == k || j == k)
+                        Utils::WriteFortranNumber(IVRoper, phi(i,j,k) / 2.0);
+                    else
+                        Utils::WriteFortranNumber(IVRoper, phi(i,j,k));
                     if (freqWeight)
                         IVRoper << ", cm-1";
 					IVRoper << std::endl;
