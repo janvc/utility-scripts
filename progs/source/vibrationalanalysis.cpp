@@ -294,10 +294,10 @@ void VibrationalAnalysis::readAnharm(const std::string &GaussLogName, bool waven
 
 		// If the index of the normal modes has three digits, Gaussian prints
 		// them without spaces, so we have to split the line manually:
-		i = std::stoi(currentLine.substr(3, 3));
-		j = std::stoi(currentLine.substr(6, 3));
-		k = std::stoi(currentLine.substr(9, 3));
-		RedValue = std::stod(currentLine.substr(13, 14));
+        i = std::stoi(currentLine.substr(3, 4));
+        j = std::stoi(currentLine.substr(10, 4));
+        k = std::stoi(currentLine.substr(17, 4));
+        RedValue = std::stod(currentLine.substr(22, 20));
 		index1.push_back(m_Nmodes - i);
 		index2.push_back(m_Nmodes - j);
 		index3.push_back(m_Nmodes - k);
@@ -353,11 +353,11 @@ void VibrationalAnalysis::readAnharm(const std::string &GaussLogName, bool waven
 	{
 		if (currentLine.size() == 0)
 			break;
-		i = std::stoi(currentLine.substr(0, 3));
-		j = std::stoi(currentLine.substr(3, 3));
-		k = std::stoi(currentLine.substr(6, 3));
-		l = std::stoi(currentLine.substr(9, 3));
-		RedValue = std::stod(currentLine.substr(13, 14));
+        i = std::stoi(currentLine.substr(3, 4));
+        j = std::stoi(currentLine.substr(10, 4));
+        k = std::stoi(currentLine.substr(17, 4));
+        l = std::stoi(currentLine.substr(24, 4));
+        RedValue = std::stod(currentLine.substr(29, 13));
 		qindex1.push_back(m_Nmodes - i);
 		qindex2.push_back(m_Nmodes - j);
 		qindex3.push_back(m_Nmodes - k);
