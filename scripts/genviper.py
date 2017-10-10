@@ -22,7 +22,9 @@
 
 # Generate an ASCII file containing the VIPER pulse sequence
 # suitable for use in an MCTDH calculation.
-# For now, we use gaussian pulses.
+# The IR excitation pulse is a single-sided exponential with a gaussian
+# of FWHM of about 150 fs on the rising edge. The other two pulses are
+# gaussian shaped
 
 import sys
 import numpy as np
@@ -85,16 +87,19 @@ for i in range(nsteps):
     time = i * dt
     value = 0.0
     if a_seq == 1 or a_seq == 3 or a_seq == 5 or a_seq == 7:
-        if time > (tau_1 - 5.0 * sig_1) and time < (tau_1 + 5.0 * sig_1):
-            value += np.exp(-np.power(time - tau_1, 2) / (2.0 * sig_1 * sig_1)) * np.sin(frq_1 * time)
+        if time < tau_1:
+            value += np.exp(-np.power(time - tau_1, 2) / (13869679.2)) * np.sin(frq_1 * time)
+        else:
+            value += np.exp(-(time - tau_1) / sig_1) * np.sin(frq_1 * time)
 
     if a_seq == 2 or a_seq == 3 or a_seq == 6 or a_seq == 7:
-        if time > (tau_2 - 5.0 * sig_2) and time < (tau_2 + 5.0 * sig_2):
-            value += np.exp(-np.power(time - tau_2, 2) / (2.0 * sig_2 * sig_2)) * np.sin(frq_2 * time)
+        value += np.exp(-np.power(time - tau_2, 2) / (2.0 * sig_2 * sig_2)) * np.sin(frq_2 * time)
 
     if a_seq == 4 or a_seq == 5 or a_seq == 6 or a_seq == 7:
-        if time > (tau_3 - 5.0 * sig_3) and time < (tau_3 + 5.0 * sig_3):
-            value += np.exp(-np.power(time - tau_3, 2) / (2.0 * sig_3 * sig_3)) * np.sin(frq_3 * time)
+        value += np.exp(-np.power(time - tau_3, 2) / (2.0 * sig_3 * sig_3)) * np.sin(frq_3 * time)
+
+    if abs(value) < 1.0e-8:
+        value = 0.0
 
     outfile.write("{0:12.8f} {1:12.8f} {2:12.8f} {3:12.8f}\n".format(time, value, 0.0, value))
 
