@@ -270,8 +270,22 @@ void VibrationalAnalysis::readAnharm(const std::string &GaussLogName, bool waven
 	double quartFac = (planck * Eh * 1.0e40) / (c0 * c0 * c0 * 1.0e6 * ang2a0 * ang2a0 * ang2a0 * ang2a0 * me * me * 16.0 * M_PI * M_PI * M_PI * M_PI);
 
 	std::ifstream GaussLog(GaussLogName, std::ifstream::in);
+    std::string currentLine;
 
-	std::string currentLine;
+    /*
+     * Determine, whether we are using an output of Gaussian09 or Gaussian16.
+     */
+    bool isG16 = false;
+    while (std::getline(GaussLog, currentLine))
+        if (currentLine.find("Entering Gaussian System") != std::string::npos)
+            if (currentLine.find("g16") != std::string::npos)
+            {
+                isG16 = true;
+                break;
+            }
+    GaussLog.clear();
+    GaussLog.seekg(0);
+
 	std::vector<int> index1, index2, index3;
 	std::vector<double> RedValues;
 
@@ -292,12 +306,22 @@ void VibrationalAnalysis::readAnharm(const std::string &GaussLogName, bool waven
 		if (currentLine.size() == 0)
 			break;
 
-		// If the index of the normal modes has three digits, Gaussian prints
+        // If the index of the normal modes has three digits, Gaussian09 prints
 		// them without spaces, so we have to split the line manually:
-		i = std::stoi(currentLine.substr(3, 3));
-		j = std::stoi(currentLine.substr(6, 3));
-		k = std::stoi(currentLine.substr(9, 3));
-		RedValue = std::stod(currentLine.substr(13, 14));
+        if (isG16)
+        {
+            i = std::stoi(currentLine.substr(3, 4));
+            j = std::stoi(currentLine.substr(10, 4));
+            k = std::stoi(currentLine.substr(17, 4));
+            RedValue = std::stod(currentLine.substr(22, 20));
+        }
+        else
+        {
+            i = std::stoi(currentLine.substr(3, 3));
+            j = std::stoi(currentLine.substr(6, 3));
+            k = std::stoi(currentLine.substr(9, 3));
+            RedValue = std::stod(currentLine.substr(13, 14));
+        }
 		index1.push_back(m_Nmodes - i);
 		index2.push_back(m_Nmodes - j);
 		index3.push_back(m_Nmodes - k);
@@ -353,11 +377,23 @@ void VibrationalAnalysis::readAnharm(const std::string &GaussLogName, bool waven
 	{
 		if (currentLine.size() == 0)
 			break;
-		i = std::stoi(currentLine.substr(0, 3));
-		j = std::stoi(currentLine.substr(3, 3));
-		k = std::stoi(currentLine.substr(6, 3));
-		l = std::stoi(currentLine.substr(9, 3));
-		RedValue = std::stod(currentLine.substr(13, 14));
+
+        if (isG16)
+        {
+            i = std::stoi(currentLine.substr(3, 4));
+            j = std::stoi(currentLine.substr(10, 4));
+            k = std::stoi(currentLine.substr(17, 4));
+            l = std::stoi(currentLine.substr(24, 4));
+            RedValue = std::stod(currentLine.substr(29, 13));
+        }
+        else
+        {
+            i = std::stoi(currentLine.substr(0, 3));
+            j = std::stoi(currentLine.substr(3, 3));
+            k = std::stoi(currentLine.substr(6, 3));
+            l = std::stoi(currentLine.substr(9, 3));
+            RedValue = std::stod(currentLine.substr(13, 14));
+        }
 		qindex1.push_back(m_Nmodes - i);
 		qindex2.push_back(m_Nmodes - j);
 		qindex3.push_back(m_Nmodes - k);

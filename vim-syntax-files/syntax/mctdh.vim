@@ -50,7 +50,7 @@ syn keyword pbasisKeywords contained FFT HO el rHO Leg Lagu1 Lagu2 Lagu3 Lagu4 s
 syn keyword IntegratorKeywords contained VMF CMF ABM BS RK5 RK8 SIL CSIL DAV rDAV rrDAV cDAV
 
 " Keywords for INIT_WF-SECTION
-syn keyword InitWFKeywords contained file build end-build gauss HO eigenf pop
+syn keyword InitWFKeywords contained file build end-build gauss HO eigenf pop operate
 
 " END of Input
 syn keyword EndInput end-input end-operator
@@ -60,7 +60,7 @@ syn keyword EndInput end-input end-operator
 syn keyword OpDefineKeywords contained title end-title
 
 " hamiltonian-section
-syn keyword HamiltonianKeywords contained modes KE usediag
+syn keyword HamiltonianKeywords contained modes KE usediag nodiag
 
 
 " INPUT SECTIONS
@@ -75,6 +75,8 @@ syn region InitWFSection matchgroup=mctdhSections start="INIT_WF-SECTION" end="e
 syn region OpDefineSection matchgroup=mctdhSections start="OP_DEFINE-SECTION" end="end-op_define-section" transparent contains=OpdefineKeywords,mctdhComment
 syn region ParameterSection matchgroup=mctdhSections start="PARAMETER-SECTION" end="END-PARAMETER-SECTION" transparent contains=mctdhComment,mctdhNumber,mctdhFloat
 syn region HamiltonianSection matchgroup=mctdhSections start="HAMILTONIAN-SECTION" end="END-HAMILTONIAN-SECTION" transparent contains=HamiltonianKeywords,mctdhComment,mctdhNumber,mctdhFloat
+syn region LabelsSection matchgroup=mctdhSections start="LABELS-SECTION" end="END-LABELS-SECTION" transparent contains=HamiltonianKeywords,mctdhComment,mctdhNumber,mctdhFloat
+syn region FunctionSection matchgroup=mctdhSections start="FUNCTION-SECTION" end="END-FUNCTION-SECTION" transparent contains=HamiltonianKeywords,mctdhComment,mctdhNumber,mctdhFloat
 
 " Highlights
 hi def link mctdhComment        Comment
