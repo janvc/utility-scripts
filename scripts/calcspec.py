@@ -24,13 +24,15 @@ import sys
 import subprocess
 import time
 import shutil
+import copy
+import getopt
 
 
 #
 # Define some global variables.
 #
-mctdhExe = "/home/jan/mctdh85.6.1/bin/binary/x86_64/mctdh85"
-rdgpopExe = "/home/jan/mctdh85.6.1/bin/binary/x86_64/rdgpop85"
+mctdhExe = "/home/jvcosel/mctdh85.5/bin/binary/x86_64/mctdh85"
+rdgpopExe = "/home/jvcosel/mctdh85.5/bin/binary/x86_64/rdgpop85"
 
 
 #
@@ -186,13 +188,21 @@ class MCTDHcalculation:
         self.natPopThres = float(sys.argv[2])
         self.optGrid = False
         self.grdPopThres = 0.0
-        if len(sys.argv) == 4:
+        self.checkInterval = 60.0
+        if len(sys.argv) >= 4:
             self.optGrid = True
             self.grdPopThres = float(sys.argv[3])
+        if len(sys.argv) == 5:
+            self.checkInterval = float(sys.argv[4])
 
         f = open(self.initInputName, "r")
         self.initInputData = f.readlines()
         f.close()
+
+        print("Processing MCTDH input file ", self.initInputName)
+        sys.stdout.write("Threshold for ML basis population: {0:3.1e}\n".format(self.natPopThres))
+        sys.stdout.write("Threshold for grid population:     {0:3.1e}\n".format(self.grdPopThres))
+        sys.stdout.write("Checking the populations every {0:5.1f} seconds\n".format(self.checkInterval))
 
         self.TFinLNr = int(findMCTDHline(self.initInputData, "tfinal"))
         self.tfinal = float(findMCTDHparameter(self.initInputData, "tfinal"))
@@ -217,16 +227,19 @@ def main():
         # create a new and improved input
     # redo the full calculation once more with the final basis
 
+    print("This is calcspec!")
+
     calc = MCTDHcalculation()
 
     tmpNameDir = calc.baseName + "_tmp"
     tmpInputName = tmpNameDir + ".inp"
-    currentInputData = calc.initInputData
-    for i in range(len(currentInputData)):
-        if ("name" in currentInputData[i].lower() and "=" in currentInputData[i]):
-            s = currentInputData[i].split("=")[0] + " = " + tmpNameDir + "\n"
-            currentInputData[i] = s
+    startInputData = copy.deepcopy(calc.initInputData)
+    for i in range(len(startInputData)):
+        if ("name" in startInputData[i].lower() and "=" in startInputData[i]):
+            s = startInputData[i].split("=")[0] + " = " + tmpNameDir + "\n"
+            startInputData[i] = s
             break
+    currentInputData = startInputData
 
     currentInputFile = open(tmpInputName, "w")
     for l in currentInputData:
@@ -239,18 +252,21 @@ def main():
     calcIndex = 1
     isRestartCalc = False
     currTfinal = calc.tfinal
+    elapsedTime = 0.0
+
     while True:
-        sys.stdout.write("Starting calculation no {0:4d}\n".format(calcIndex))
+        sys.stdout.write("Starting calculation no {0:4d} with tfinal = {1:6.2f} fs\n".format(calcIndex, currTfinal))
 
         mctdhCommand = [mctdhExe, "-w", tmpInputName]
         mctdhProc = subprocess.Popen(mctdhCommand)
 
         while True:
-            time.sleep(10)
+            time.sleep(calc.checkInterval)
             # Get info about the state of the calculation.
             natPopList = analNatPop(tmpNameDir)
             grdPopList = analGpop(tmpNameDir)
             currTime = getCurrentTime(tmpNameDir)
+            sys.stdout.write("Time = {0:6.2f} fs\n".format(elapsedTime + currTime))
 
             # See if we exceeded the convergence thresholds.
             natViol = False
@@ -298,8 +314,10 @@ def main():
 
         # We have just finished the calculation. If the natural populations have
         # exceeded the threshold, improve the ML basis:
+        elapsedTime += currTime
         newInputData = currentInputData
         if natViol:
+            print("improving the ML basis.")
 
             # Increase the number of SPFs for the modes where the convergence criterion
             # was violated. If the natural population is greater than twice the
@@ -326,6 +344,7 @@ def main():
         # from the beginning.
         if grdViol:
 
+            print("improving the primitive basis.")
             # Improve the primitive basis section.
             for i in range(len(grdPopList)):
                 currLNr = calc.grdStart + i
@@ -365,11 +384,12 @@ def main():
 
             # Take the initial input and substitute the newly generated ml-
             # and primitive bases into it.
-            currentInputData = calc.initInputData
+            currentInputData = startInputData
             currentInputData[calc.mlbStart:calc.mlbEnd] = newInputData[calc.mlbStart:calc.mlbEnd]
             currentInputData[calc.grdStart:calc.grdEnd] = newInputData[calc.grdStart:calc.grdEnd]
             isRestartCalc = False
             currTfinal = calc.tfinal
+            elapsedTime = 0.0
         else:
             # the primitive basis is OK, so we can use the final wavefunction of
             # the previous calculation as the initial condition for the next and
@@ -393,12 +413,25 @@ def main():
 
         calcIndex += 1
 
+    print("calculation completed.")
     # if the last calculation, the one that was successfull, was a restart calculation,
     # do a final calculation from the initial time using the optimized primitive and ML basis.
     if isRestartCalc:
+        print("performing a final calculation from the beginning.")
         finalInputData = calc.initInputData
         finalInputData[calc.mlbStart:calc.mlbEnd] = newInputData[calc.mlbStart:calc.mlbEnd]
         finalInputData[calc.grdStart:calc.grdEnd] = newInputData[calc.grdStart:calc.grdEnd]
+
+        # Set and create the name directory.
+        finalNameDir = calc.baseName + "_final"
+        for i in range(len(finalInputData)):
+            if ("name" in finalInputData[i].lower() and "=" in finalInputData[i]):
+                s = finalInputData[i].split("=")[0] + " = " + finalNameDir + "\n"
+                finalInputData[i] = s
+                break
+
+        if not os.path.exists(finalNameDir):
+            os.makedirs(finalNameDir)
 
         finalInputName = calc.baseName + "_final.inp"
         finalInputFile = open(finalInputName, "w")
@@ -408,6 +441,9 @@ def main():
 
         mctdhCommand = [mctdhExe, "-w", finalInputName]
         mctdhProc = subprocess.Popen(mctdhCommand)
+        mctdhProc.wait()
+
+    print("Normal termination!")
 
 if __name__ == "__main__":
     main()
