@@ -569,14 +569,13 @@ int main(int argc, char *argv[])
 	IVRoper << "    # diagonal quartic force constants:\n";
 	IVRoper << "    # the numbers here are equal to 1/24 * fq_iiii\n";
 	for (int i = 0; i < Nmodes; i++)
-		if (std::abs(double(diagf(i))) >= deriv_thres)
-		{
-			IVRoper << "    fdia_" << std::setfill('0') << std::setw(3) << i + 1 << "        = ";
-            Utils::WriteFortranNumber(IVRoper, double(diagf(i)) / 24.0);
-            if (freqWeight)
-                IVRoper << ", cm-1";
-			IVRoper << std::endl;
-		}
+    {
+        IVRoper << "    fdia_" << std::setfill('0') << std::setw(3) << i + 1 << "        = ";
+        Utils::WriteFortranNumber(IVRoper, double(diagf(i)) / 24.0);
+        if (freqWeight)
+            IVRoper << ", cm-1";
+        IVRoper << std::endl;
+    }
 	IVRoper << "end-parameter-section\n\n";
 
 	IVRoper << "hamiltonian-section\n";
