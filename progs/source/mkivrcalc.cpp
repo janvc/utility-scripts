@@ -58,7 +58,7 @@ int main(int argc, char *argv[])
     if (vm.count("fw"))
         freqWeight = true;
 
-	po::notify(vm);
+    po::notify(vm);
 
 
 	std::cout << "Ground state Fchk file:       " << gsFchkName << std::endl;
@@ -188,15 +188,15 @@ int main(int argc, char *argv[])
 	{
         if (freqWeight)
         {
-            nBasis[i] = 20; //lrint(-1.4 * log(double(f1(i)))) + 6;
-            lowBound[i] = -5.0; //-7.5 / (sqrt(2.0) * pow(double(f1(i)), 0.25));
-            uppBound[i] =  5.0; //7.5 / (sqrt(2.0) * pow(double(f1(i)), 0.25));
+            nBasis[i] = 50; //lrint(-1.4 * log(double(f1(i)))) + 6;
+            lowBound[i] = -8.0; //-7.5 / (sqrt(2.0) * pow(double(f1(i)), 0.25));
+            uppBound[i] =  8.0; //7.5 / (sqrt(2.0) * pow(double(f1(i)), 0.25));
         }
         else
         {
-            nBasis[i] = lrint(-1.4 * log(double(f1(i)))) + 6;
-            lowBound[i] = -7.5 / (sqrt(2.0) * pow(double(f1(i)), 0.25));
-            uppBound[i] =  7.5 / (sqrt(2.0) * pow(double(f1(i)), 0.25));
+            nBasis[i] = lrint(-2.0 * log(double(f1(i)))) + 6;
+            lowBound[i] = -10.0 / (sqrt(2.0) * pow(double(f1(i)), 0.25));
+            uppBound[i] =  10.0 / (sqrt(2.0) * pow(double(f1(i)), 0.25));
         }
 	}
 
