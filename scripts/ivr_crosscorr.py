@@ -97,7 +97,7 @@ def run_calc(mode, state, refData, psiDir):
     newData = refData
     # get the name-directory for the reference calculations:
     for i in range(len(refData)):
-        if (" name =" in refData[i]):
+        if ("name" in refData[i] and "=" in refData[i] and not "opname" in refData[i]):
             dirLine = i
         if "Eq_" + str(mode).zfill(3) in refData[i]:
             modeLine = i
