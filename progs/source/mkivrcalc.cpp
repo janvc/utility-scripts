@@ -627,10 +627,9 @@ int main(int argc, char *argv[])
 								   << "   |" << k + 1 << " q\n";
 				}
 
-	for (int i = 0; i < Nmodes; i++)
-		if (std::abs(double(diagf(i))) >= deriv_thres)
-			IVRoper << "fdia_" << std::setfill('0') << std::setw(3) << i + 1
-					<< "        |" << i + 1 << " q^4\n";
+    for (int i = 0; i < Nmodes; i++)
+        IVRoper << "fdia_" << std::setfill('0') << std::setw(3) << i + 1
+                << "        |" << i + 1 << " q^4\n";
 
 	IVRoper << "end-hamiltonian-section\n\n";
 
