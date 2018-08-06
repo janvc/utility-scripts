@@ -33,6 +33,7 @@ int main(int argc, char *argv[])
 {
 	std::string gsFchkName, esFchkName, AnharmLogName, MCTDHbaseName;
 	double deriv_thres;
+    double scaleFactor = 1.0;
 	bool doExcitedState = false;
     bool freqWeight = false;
 	namespace po = boost::program_options;
@@ -44,6 +45,7 @@ int main(int argc, char *argv[])
 		("ahlog,l", po::value<std::string>(&AnharmLogName)->required(), "the anharmonic log file")
 		("mctdh,m", po::value<std::string>(&MCTDHbaseName)->required(), "the MCTDH base filename")
 		("thres,t", po::value<double>(&deriv_thres)->required(), "threshold for the anharmonic couplings")
+        ("scale,s", po::value<double>(&scaleFactor), "scaling factor for the anharmonic terms")
         ("fw,w", "use frequency weighted coordinates")
 	;
 	po::variables_map vm;
@@ -61,11 +63,12 @@ int main(int argc, char *argv[])
     po::notify(vm);
 
 
-	std::cout << "Ground state Fchk file:       " << gsFchkName << std::endl;
-	std::cout << "Excited state Fchk file:      " << esFchkName << std::endl;
-	std::cout << "Anharmonic log file:          " << AnharmLogName << std::endl;
-	std::cout << "Basename for MCTDH files:     " << MCTDHbaseName << std::endl;
-	std::cout << "Threshold for 3rd/4th derivs: " << deriv_thres << std::endl << std::endl;
+    std::cout << "Ground state Fchk file:              " << gsFchkName << std::endl;
+    std::cout << "Excited state Fchk file:             " << esFchkName << std::endl;
+    std::cout << "Anharmonic log file:                 " << AnharmLogName << std::endl;
+    std::cout << "Basename for MCTDH files:            " << MCTDHbaseName << std::endl;
+    std::cout << "Threshold for 3rd/4th derivs:        " << deriv_thres << std::endl;
+    std::cout << "Scaling factor for anharmonic terms: " << scaleFactor << std::endl << std::endl;;
 
     if (freqWeight)
     {
@@ -557,11 +560,11 @@ int main(int argc, char *argv[])
 								   << "_" << std::setfill('0') << std::setw(3) << k + 1
 								   << " = ";
                     if (i == j && i == k)
-                        Utils::WriteFortranNumber(IVRoper, phi(i,j,k) / 6.0);
+                        Utils::WriteFortranNumber(IVRoper, phi(i,j,k) * scaleFactor / 6.0);
                     else if (i == j || i == k || j == k)
-                        Utils::WriteFortranNumber(IVRoper, phi(i,j,k) / 2.0);
+                        Utils::WriteFortranNumber(IVRoper, phi(i,j,k) * scaleFactor / 2.0);
                     else
-                        Utils::WriteFortranNumber(IVRoper, phi(i,j,k));
+                        Utils::WriteFortranNumber(IVRoper, phi(i,j,k) * scaleFactor);
                     if (freqWeight)
                         IVRoper << ", cm-1";
 					IVRoper << std::endl;
@@ -571,7 +574,7 @@ int main(int argc, char *argv[])
 	for (int i = 0; i < Nmodes; i++)
     {
         IVRoper << "    fdia_" << std::setfill('0') << std::setw(3) << i + 1 << "        = ";
-        Utils::WriteFortranNumber(IVRoper, double(diagf(i)) / 24.0);
+        Utils::WriteFortranNumber(IVRoper, double(diagf(i)) * scaleFactor / 24.0);
         if (freqWeight)
             IVRoper << ", cm-1";
         IVRoper << std::endl;
