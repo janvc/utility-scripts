@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright 2016-2017 Jan von Cosel
+# Copyright 2016-2018 Jan von Cosel
 #
 # This file is part of utility-scripts.
 #
@@ -31,8 +31,8 @@ import getopt
 #
 # Define some global variables.
 #
-mctdhExe = "/home/jvcosel/mctdh85.5/bin/binary/x86_64/mctdh85"
-rdgpopExe = "/home/jvcosel/mctdh85.5/bin/binary/x86_64/rdgpop85"
+mctdhExe = "/home/jvcosel/mctdh85.7/bin/binary/x86_64/mctdh85"
+rdgpopExe = "/home/jvcosel/mctdh85.7/bin/binary/x86_64/rdgpop85"
 
 
 #
@@ -62,6 +62,7 @@ def analNatPop(nameDir):
     popFileName = nameDir + "/lownatpop"
     popList = []
 
+    # if the lownatpop file does not exist, return an empty list
     if not os.path.isfile(popFileName):
         emptyList = []
         tmpList = []
@@ -71,9 +72,11 @@ def analNatPop(nameDir):
         emptyList.append(tmpList)
         return emptyList
 
+    fileHasLines = False
     with open(popFileName) as popFile:
         for line in popFile:
             if "#" in line:     # the layer/node/mode information
+                fileHasLines = True
                 # Rule out the first line:
                 if not "lownatpop" in line:
                     if "layer" in line:
@@ -87,6 +90,16 @@ def analNatPop(nameDir):
                 for i in range(len(popList)):
                     if float(line.split()[i+1]) > float(popList[i]):
                         popList[i] = line.split()[i+1]
+
+    # if the file exists but is empty, return an empty list as well
+    if not fileHasLines:
+        emptyList = []
+        tmpList = []
+        for i in range(4):
+            tmpList.append(0)
+        emptyList.append(tmpList)
+        emptyList.append(tmpList)
+        return emptyList
 
     outputList = []
     for i in range(len(popList)):
@@ -157,8 +170,12 @@ def getCurrentTime(nameDir):
     currentTime = 0.0
     with open(speedFileName) as speedFile:
         speedList = speedFile.readlines()
-        if not "#" in speedList[-1]:
-            currentTime = float(speedList[-1].split()[0])
+        try:
+            if not "#" in speedList[-1]:
+                currentTime = float(speedList[-1].split()[0])
+        # if the speed file exists, but is (still) empty, we would get an index error
+        except IndexError:
+            return 0.0
 
     return currentTime
 
@@ -190,8 +207,9 @@ class MCTDHcalculation:
         self.grdPopThres = 0.0
         self.checkInterval = 60.0
         if len(sys.argv) >= 4:
-            self.optGrid = True
-            self.grdPopThres = float(sys.argv[3])
+            if float(sys.argv[3]) > 0.0:
+                self.optGrid = True
+                self.grdPopThres = float(sys.argv[3])
         if len(sys.argv) == 5:
             self.checkInterval = float(sys.argv[4])
 
@@ -217,47 +235,32 @@ class MCTDHcalculation:
         self.crashed = False
 
 def main():
-    # setup first input
-    # loop:
-        # start calculation
-        # loop:
-            # check for termination or exceeded thresholds
-            # wait
-        # remove stop file and wait
-        # create a new and improved input
-    # redo the full calculation once more with the final basis
 
     print("This is calcspec!")
 
     calc = MCTDHcalculation()
+    calcIndex = 1
 
-    tmpNameDir = calc.baseName + "_tmp"
+    tmpNameDir = calc.baseName + "_" + str(calcIndex).zfill(3)
     tmpInputName = tmpNameDir + ".inp"
-    startInputData = copy.deepcopy(calc.initInputData)
+    startInputData = calc.initInputData[:]
     for i in range(len(startInputData)):
         if ("name" in startInputData[i].lower() and "=" in startInputData[i]):
             s = startInputData[i].split("=")[0] + " = " + tmpNameDir + "\n"
             startInputData[i] = s
             break
-    currentInputData = startInputData
+    currentInputData = startInputData[:]
 
     currentInputFile = open(tmpInputName, "w")
     for l in currentInputData:
         currentInputFile.write(l)
     currentInputFile.close()
 
-    if not os.path.exists(tmpNameDir):
-        os.makedirs(tmpNameDir)
-
-    calcIndex = 1
-    isRestartCalc = False
-    currTfinal = calc.tfinal
-    elapsedTime = 0.0
-
     while True:
-        sys.stdout.write("Starting calculation no {0:4d} with tfinal = {1:6.2f} fs\n".format(calcIndex, currTfinal))
+        sys.stdout.write("Starting calculation no {0:4d}\n".format(calcIndex))
+        sys.stdout.flush()
 
-        mctdhCommand = [mctdhExe, "-w", tmpInputName]
+        mctdhCommand = [mctdhExe, "-mnd", tmpInputName]
         mctdhProc = subprocess.Popen(mctdhCommand)
 
         while True:
@@ -266,7 +269,7 @@ def main():
             natPopList = analNatPop(tmpNameDir)
             grdPopList = analGpop(tmpNameDir)
             currTime = getCurrentTime(tmpNameDir)
-            sys.stdout.write("Time = {0:6.2f} fs\n".format(elapsedTime + currTime))
+            sys.stdout.write("Time = {0:7.2f} fs, max. nat. pop. = {1:7.5f}, max. grid pop. = {2:8.6f}\n".format(currTime, natPopList[0][3], max(max(grdPopList))))
 
             # See if we exceeded the convergence thresholds.
             natViol = False
@@ -287,13 +290,14 @@ def main():
                     # This branch is only reached if MCTDH is no longer running
                     # but has not terminated normally, i.e. it crashed...
                     calc.finished = False
-                    calc.crashed = True
+                    sys.exit("MCTDH has crashed")
                 break
             else:
                 if natViol or grdViol:
                     calc.finished = False
                     if os.path.isfile(tmpNameDir + "/stop"):    # Remove the stop file and wait
                         os.remove(tmpNameDir + "/stop")         # for MCTDH to terminate itself.
+                        print("removing stop file")
                         while True:
                             # This is a potential infinite loop...
                             if mctdhProc.poll() is not None:
@@ -303,6 +307,7 @@ def main():
                     else:
                         # This is also a weird place: why would MCTDH still be
                         # running without there being a stop file?
+                        print("terminating MCTDH")
                         try:
                             mctdhProc.terminate()
                         except OSError:
@@ -312,10 +317,13 @@ def main():
         if calc.finished:
             break
 
-        # We have just finished the calculation. If the natural populations have
-        # exceeded the threshold, improve the ML basis:
-        elapsedTime += currTime
-        newInputData = currentInputData
+        # We have just finished the calculation. Since we have removed the stop file, there is one more
+        # write step to consider, where the thresholds could have been exceeded. Therefore, run
+        # analNatPop and analGrdPop again.
+        # If the natural populations have exceeded the threshold, improve the ML basis:
+        natPopList = analNatPop(tmpNameDir)
+        grdPopList = analGpop(tmpNameDir)
+        newInputData = currentInputData[:]
         if natViol:
             print("improving the ML basis.")
 
@@ -334,11 +342,14 @@ def main():
                         if j == currMode - 1:
                             if natPopList[i][3] > 2.0 * calc.natPopThres:
                                 newInputData[currLNr] += " " + str(int(currSPFlist[j]) + 2)
+                                sys.stdout.write("line {0:4d}, mode {1:4d}: {2:4d} > {3:4d}\n".format(int(natPopList[i][1][5:]) - 1, currMode, int(currSPFlist[j]), int(currSPFlist[j]) + 2))
                             else:
                                 newInputData[currLNr] += " " + str(int(currSPFlist[j]) + 1)
+                                sys.stdout.write("line {0:4d}, mode {1:4d}: {2:4d} > {3:4d}\n".format(int(natPopList[i][1][5:]) - 1, currMode, int(currSPFlist[j]), int(currSPFlist[j]) + 1))
                         else:
                             newInputData[currLNr] += " " + str(int(currSPFlist[j]))
                     newInputData[currLNr] += "\n"
+                sys.stdout.flush()
 
         # If the primitive basis needs to be expanded, we need to start the calculation
         # from the beginning.
@@ -356,8 +367,10 @@ def main():
 
                 if grdPopList[i][2] > calc.grdPopThres: # basis end too high
                     newPBline += str(int(currLnData[2]) + 2)
+                    sys.stdout.write("mode {0:4d} add 2 basis functions\n".format(i+1))
                 elif grdPopList[i][2] > 10.0 * calc.grdPopThres:
                     newPBline += str(int(currLnData[2]) + 4)
+                    sys.stdout.write("mode {0:4d} add 4 basis functions\n".format(i+1))
                 else:
                     newPBline += str(int(currLnData[2]))
 
@@ -365,8 +378,10 @@ def main():
 
                 if grdPopList[i][0] > calc.grdPopThres:
                     newPBline += "%.1f"%(float(currLnData[4]) - grdStep)
+                    sys.stdout.write("mode {0:4d} move grid begin from {1:6.2f} to {2:6.2f}\n".format(i+1, float(currLnData[4]), float(currLnData[4]) - grdStep))
                 elif grdPopList[i][0] > 10.0 * calc.grdPopThres:
                     newPBline += "%.1f"%(float(currLnData[4]) - grdStep * 2.0)
+                    sys.stdout.write("mode {0:4d} move grid begin from {1:6.2f} to {2:6.2f}\n".format(i+1, float(currLnData[4]), float(currLnData[4]) - grdStep * 2.0))
                 else:
                     newPBline += "%.1f"%(float(currLnData[4]))
 
@@ -374,74 +389,41 @@ def main():
 
                 if grdPopList[i][1] > calc.grdPopThres:
                     newPBline += "%.1f"%(float(currLnData[5]) + grdStep)
+                    sys.stdout.write("mode {0:4d} move grid end from {1:6.2f} to {2:6.2f}\n".format(i+1, float(currLnData[5]), float(currLnData[5]) + grdStep))
                 elif grdPopList[i][1] > 10.0 * calc.grdPopThres:
                     newPBline += "%.1f"%(float(currLnData[5]) + grdStep * 2.0)
+                    sys.stdout.write("mode {0:4d} move grid end from {1:6.2f} to {2:6.2f}\n".format(i+1, float(currLnData[5]), float(currLnData[5]) + grdStep * 2.0))
                 else:
                     newPBline += "%.1f"%(float(currLnData[5]))
 
                 newPBline += "\n"
                 newInputData[currLNr] = newPBline
+                sys.stdout.flush()
 
             # Take the initial input and substitute the newly generated ml-
             # and primitive bases into it.
-            currentInputData = startInputData
+            currentInputData = startInputData[:]
             currentInputData[calc.mlbStart:calc.mlbEnd] = newInputData[calc.mlbStart:calc.mlbEnd]
             currentInputData[calc.grdStart:calc.grdEnd] = newInputData[calc.grdStart:calc.grdEnd]
-            isRestartCalc = False
-            currTfinal = calc.tfinal
-            elapsedTime = 0.0
-        else:
-            # the primitive basis is OK, so we can use the final wavefunction of
-            # the previous calculation as the initial condition for the next and
-            # reduce the propagation time accordingly
-            currTfinal -= currTime
-            TFinLine = "    tfinal = %.1f\n"%currTfinal
-            newInputData[calc.TFinLNr] = TFinLine
 
-            if not isRestartCalc:
-                del newInputData[calc.iwfStart:calc.iwfEnd]
-                newInputData[calc.iwfStart] = "    file = restart\n"
-                isRestartCalc = True
-
-            currentInputData = newInputData
-            shutil.copy2(tmpNameDir + "/restart", "restart")
-
-        currentInputFile = open(tmpInputName, "w")
-        for l in currentInputData:
-            currentInputFile.write(l)
-        currentInputFile.close()
-
+        # create the new input file for the next calculation.
         calcIndex += 1
+        newNameDir = calc.baseName + "_" + str(calcIndex).zfill(3)
+        newInputName = newNameDir + ".inp"
+        newInputFile = open(newInputName, "w")
+        for item in newInputData:
+            if ("name" in item.lower() and "=" in item and not "opname" in item.lower()):
+                s = item.split("=")[0] + " = " + newNameDir + "\n"
+                item = s
+            newInputFile.write(item)
+        newInputFile.close()
+
+        tmpInputName = newInputName
+        tmpNameDir = newNameDir
+        currentInputData = newInputData[:]
 
     print("calculation completed.")
-    # if the last calculation, the one that was successfull, was a restart calculation,
-    # do a final calculation from the initial time using the optimized primitive and ML basis.
-    if isRestartCalc:
-        print("performing a final calculation from the beginning.")
-        finalInputData = calc.initInputData
-        finalInputData[calc.mlbStart:calc.mlbEnd] = newInputData[calc.mlbStart:calc.mlbEnd]
-        finalInputData[calc.grdStart:calc.grdEnd] = newInputData[calc.grdStart:calc.grdEnd]
-
-        # Set and create the name directory.
-        finalNameDir = calc.baseName + "_final"
-        for i in range(len(finalInputData)):
-            if ("name" in finalInputData[i].lower() and "=" in finalInputData[i]):
-                s = finalInputData[i].split("=")[0] + " = " + finalNameDir + "\n"
-                finalInputData[i] = s
-                break
-
-        if not os.path.exists(finalNameDir):
-            os.makedirs(finalNameDir)
-
-        finalInputName = calc.baseName + "_final.inp"
-        finalInputFile = open(finalInputName, "w")
-        for l in finalInputData:
-            finalInputFile.write(l)
-        finalInputFile.close()
-
-        mctdhCommand = [mctdhExe, "-w", finalInputName]
-        mctdhProc = subprocess.Popen(mctdhCommand)
-        mctdhProc.wait()
+    sys.stdout.flush()
 
     print("Normal termination!")
 
