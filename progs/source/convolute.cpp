@@ -53,6 +53,7 @@ int main(int argc, char *argv[])
 	type specType;
 	char typeChar;
 	double gamma;
+    double rangeFac;
 	long nPoints;
 
 	namespace po = boost::program_options;
@@ -63,6 +64,8 @@ int main(int argc, char *argv[])
 		("input,f", po::value<std::string>(&intFileName)->required(), "the input file")
 		("width,w", po::value<double>(&gamma)->required(), "FWHM of the spectrum (eV for FCClasses, cm-1 for Gaussian")
 		("npoints,n", po::value<long>(&nPoints)->required(), "Number of points in the spectrum")
+        ("norm", "normalize the convoluted spectrum")
+        ("range,r", po::value<double>(&rangeFac), "range outside of stick transitions relative to width")
 	;
 	po::variables_map vm;
 	po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -82,6 +85,11 @@ int main(int argc, char *argv[])
 		std::cout << desc << std::endl;
 		return 1;
 	}
+    bool normalize = false;
+    if (vm.count("norm"))
+    {
+        normalize = true;
+    }
 
 	/*
 	 * Open the input file
@@ -187,8 +195,8 @@ int main(int argc, char *argv[])
 	 */
 	std::vector<double> freqAxis(nPoints);
 	double width = peakPositions.back() - peakPositions.front();
-	double fmin = peakPositions.front() - (width / 2.0);
-	double fmax = peakPositions.back() + (width / 2.0);
+    double fmin = peakPositions.front() - (width * rangeFac);
+    double fmax = peakPositions.back() + (width * rangeFac);
 	double delta_f = (fmax - fmin) / (nPoints - 1);
 	for (int i = 0; i < static_cast<int>(freqAxis.size()); i++)
 		freqAxis.at(i) = fmin + (i * delta_f);
@@ -220,11 +228,14 @@ int main(int argc, char *argv[])
 	 * Normalize the spectrum:
 	 * First, we calculate the overall integral:
 	 */
-	double integral = 0.0;
-	for (int i = 0; i < nPoints; i++)
-		integral += delta_f * intAxis.at(i);
-	for (int i = 0; i < nPoints; i++)
-		intAxis.at(i) /= integral;
+    if (normalize)
+    {
+        double integral = 0.0;
+        for (int i = 0; i < nPoints; i++)
+            integral += delta_f * intAxis.at(i);
+        for (int i = 0; i < nPoints; i++)
+            intAxis.at(i) /= integral;
+    }
 
 	/*
 	 * Print the convoluted spectrum to stdout:
