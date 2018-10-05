@@ -60,6 +60,7 @@ public:
     Eigen::VectorXd Qs() const;
     Eigen::VectorXd Qsr() const;
 	Eigen::VectorXd masses() const;
+    Eigen::VectorXd MassVector() const;
 
 	Eigen::VectorXi atomicNumbers() const;
 

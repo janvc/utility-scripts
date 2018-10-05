@@ -900,6 +900,11 @@ Eigen::VectorXd VibrationalAnalysis::masses() const
 	return m_masses;
 }
 
+Eigen::VectorXd VibrationalAnalysis::MassVector() const
+{
+    return MassVec;
+}
+
 Eigen::VectorXi VibrationalAnalysis::atomicNumbers() const
 {
 	return atNums;
