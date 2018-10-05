@@ -156,7 +156,7 @@ int main(int argc, char *argv[])
             double phase = -std::atan2(autoInp[0].imag(), autoInp[0].real());
             double norm = 1.0 / std::abs(autoInp[0]);
             std::cout << "applying a phase of " << phase << " to the autocorrelation function\n";
-            for (int i = 0; i < N; i++)
+            for (int i = 0; i < Ninp; i++)
                 autoInp[i] *= std::exp(std::complex<double>(0.0, 1.0) * phase) * norm * dipMom;
         }
 
