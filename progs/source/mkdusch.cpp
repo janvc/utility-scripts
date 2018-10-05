@@ -365,6 +365,8 @@ int main(int argc, char *argv[])
 
 	logFile << "\nDuschinsky Matrix J:\n";
     Utils::WriteGaussMatrixToFile(logFile, J);
+    logFile << "\nDuschinsky Matrix J as square:\n";
+    Utils::WriteMatrixToFile(logFile, J);
 	logFile << "\nDisplacement Vector K:\n";
     Utils::WriteVectorToFile(logFile, K, digits, clean, threshold);
 
@@ -638,6 +640,9 @@ int main(int argc, char *argv[])
 		Emin += double(kappa(presentModes.at(i))) * double(minima(presentModes.at(i)));	// linear term
 		Emin += double(d(presentModes.at(i)));											// offset term
 	}
+
+    logFile << "\nMinimum coordinates:\n";
+    Utils::WriteVectorToFile(logFile, minima);
 
 
 	logFile << "\nVertical energies:\n";
