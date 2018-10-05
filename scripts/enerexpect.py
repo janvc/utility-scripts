@@ -28,7 +28,7 @@ import sys
 
 
 oplogFileName = "op.log"
-expectProg = "/home/jvcosel/mctdh85.5/bin/binary/x86_64/expect85"
+expectProg = "/home/jvcosel/mctdh85.7/bin/binary/x86_64/expect85"
 
 class ModePlotter:
     def __init__(self):

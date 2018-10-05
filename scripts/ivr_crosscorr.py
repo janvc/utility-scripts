@@ -30,8 +30,8 @@ import os
 import shutil
 
 
-mctdhExe = "/home/jvcosel/mctdh85.5/bin/binary/x86_64/mctdh85"
-corrExe = "/home/jvcosel/mctdh85.5/bin/binary/x86_64/crosscorr85"
+mctdhExe = "/home/jvcosel/mctdh85.7/bin/binary/x86_64/mctdh85"
+corrExe = "/home/jvcosel/mctdh85.7/bin/binary/x86_64/crosscorr85"
 
 def main():
     nameDir = sys.argv[1]
