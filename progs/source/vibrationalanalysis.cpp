@@ -137,7 +137,8 @@ void VibrationalAnalysis::constructor()
 	 * Calculate the Hessian in terms of 'internal' coordinates    **** eq. (6) ****
 	 * It has dimension 3N-6 x 3N-6
 	 */
-	Fint_min = Eigen::MatrixXd(Dmat.transpose() * Fmwc_min * Dmat).block(6, 6, m_Nmodes, m_Nmodes);
+    Fint_min_tot = Dmat.transpose() * Fmwc_min * Dmat;
+    Fint_min = Fint_min_tot.block(6, 6, m_Nmodes, m_Nmodes);
 
 
 	/*
@@ -817,6 +818,11 @@ Eigen::MatrixXd VibrationalAnalysis::Fmwc() const
 Eigen::MatrixXd VibrationalAnalysis::Fint() const
 {
 	return Fint_min;
+}
+
+Eigen::MatrixXd VibrationalAnalysis::Fint_tot() const
+{
+    return Fint_min_tot;
 }
 
 Eigen::MatrixXd VibrationalAnalysis::Lint() const

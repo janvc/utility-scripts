@@ -117,6 +117,9 @@ int main(int argc, char *argv[])
 	std::cout << "\nmetric of D matrix:\n";
     Utils::WriteSymmGaussMatrix(vibAn.D().transpose() * vibAn.D());
 
+    std::cout << "\nThe total N x N Hessian, after transformation with the D matrix:\n";
+    Utils::WriteGaussMatrix(vibAn.Fint_tot());
+
 	std::cout << "\nThe Nvib x Nvib submatrix of the internal Hessian, according to eq. (6):\n";
     Utils::WriteSymmGaussMatrix(vibAn.Fint());
 

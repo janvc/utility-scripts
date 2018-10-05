@@ -66,6 +66,7 @@ public:
 	Eigen::MatrixXd Fcart() const;
 	Eigen::MatrixXd Fmwc() const;
 	Eigen::MatrixXd Fint() const;
+    Eigen::MatrixXd Fint_tot() const;
 
 	Eigen::MatrixXd D() const;
 
@@ -130,6 +131,7 @@ private:
 	Eigen::MatrixXd Fcart_min;	// Hessian matrix at the minimum (cartesian)
 	Eigen::MatrixXd Fmwc_min;	// Hessian matrix at the minimum (mass-weighted cart.)
 	Eigen::MatrixXd Fint_min;	// Hessian matrix at the minimum (internal coordinates)
+    Eigen::MatrixXd Fint_min_tot;	// Hessian matrix at the minimum (internal coordinates)
 	Eigen::MatrixXd GaussModes;	// Normal modes calculated by gaussian
 	Eigen::MatrixXd BigAxes;	// 3N x 3N rotation matrix based on the principal axes
 	Eigen::MatrixXd Dmat;		// the D-matrix to transform
