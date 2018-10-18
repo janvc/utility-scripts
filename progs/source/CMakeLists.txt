@@ -75,6 +75,13 @@ set(gau2fcc_SOURCES
     utilities.cpp
 )
 
+set(findmin_SOURCES
+    vibrationalanalysis.cpp
+    GaussFchk.cpp
+    findmin.cpp
+    utilities.cpp
+)
+
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -Wextra")
 set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -std=f2008 -fall-intrinsics -Wall -Wextra")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -ggdb3 -Og")
@@ -94,6 +101,7 @@ add_executable(gva2            ${gva2_SOURCES})
 add_executable(mkivrcalc       ${mkivrcalc_SOURCES})
 add_executable(mctdh_fft       ${mctdh_fft_SOURCES})
 add_executable(gau2fcc         ${gau2fcc_SOURCES})
+add_executable(findmin         ${findmin_SOURCES})
 
 target_link_libraries(anharmgaussjob ${Boost_LIBRARIES})
 target_link_libraries(convolute ${Boost_LIBRARIES})
@@ -106,6 +114,7 @@ target_link_libraries(gva2 ${Boost_LIBRARIES})
 target_link_libraries(mkivrcalc ${Boost_LIBRARIES})
 target_link_libraries(mctdh_fft ${Boost_LIBRARIES} ${FFTW_LIBRARIES})
 target_link_libraries(gau2fcc ${Boost_LIBRARIES})
+target_link_libraries(findmin ${Boost_LIBRARIES})
 
 install(TARGETS convolute DESTINATION bin)
 install(TARGETS gauss_viban_cpp DESTINATION bin)
@@ -119,4 +128,5 @@ install(TARGETS anharmgaussjob DESTINATION bin)
 install(TARGETS mkivrcalc DESTINATION bin)
 install(TARGETS mctdh_fft DESTINATION bin)
 install(TARGETS gau2fcc DESTINATION bin)
+install(TARGETS findmin DESTINATION bin)
 
