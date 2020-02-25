@@ -12,7 +12,7 @@ set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 
 set(CMAKE_MODULE_PATH ${progs_SOURCE_DIR}/cmake)
 
-set(CMAKE_INSTALL_PREFIX "/home/jvcosel/bin/progs")
+set(CMAKE_INSTALL_PREFIX "$ENV{HOME}/bin/progs")
 
 add_subdirectory(source)
 
